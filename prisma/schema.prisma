@@ -1,0 +1,239 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ 系统管理模块 ============
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  avatar    String?
+  phone     String?
+  email     String?
+  dept      String?
+  status    Int      @default(1) // 1=启用 0=禁用
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles     UserRole[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  sort        Int      @default(0)
+  status      Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+  menus       RoleMenu[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  type        String   // menu=菜单按钮 api=接口权限
+  module      String?  // 所属模块
+  description String?
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles       RolePermission[]
+}
+
+model Menu {
+  id        String   @id @default(cuid())
+  parentId  String?
+  name      String
+  code      String   @unique
+  path      String?
+  icon      String?
+  component String?  // 低代码：组件标识
+  sort      Int      @default(0)
+  type      String   // directory=目录 menu=菜单 button=按钮
+  visible   Int      @default(1) // 1=显示 0=隐藏
+  status    Int      @default(1) // 1=启用 0=禁用
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  children  Menu[]   @relation("MenuTree")
+  parent    Menu?    @relation("MenuTree", fields: [parentId], references: [id])
+  roles     RoleMenu[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model RoleMenu {
+  roleId String
+  menuId String
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu   Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, menuId])
+}
+
+// ============ 感染监测模块 ============
+
+model InfectionCase {
+  id              String   @id @default(cuid())
+  patientId       String
+  patientName     String
+  gender          String
+  age             Int
+  dept            String
+  bedNo           String?
+  admissionDate   DateTime
+  infectionDate   DateTime
+  infectionSite   String
+  infectionType   String?
+  pathogen        String?
+  outcome         String?  // 治愈/好转/未愈/死亡
+  outcomeDate     DateTime?
+  reporter        String?
+  status          String   @default("待审核") // 待审核/已确认/已排除
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WarningRecord {
+  id              String   @id @default(cuid())
+  patientId       String
+  patientName     String
+  dept            String
+  warningType     String   // 病例预警/聚集预警/暴发预警
+  warningLevel    String   // 高/中/低
+  description     String
+  status          String   @default("待处理") // 待处理/已确认/已排除/已处理
+  handler         String?
+  handleResult    String?
+  handleTime      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model EnvironmentalMonitor {
+  id              String   @id @default(cuid())
+  dept            String
+  samplePoint     String
+  sampleType      String   // 空气/物体表面/医务人员手
+  sampleDate      DateTime
+  sampler         String?
+  result          String?  // 合格/不合格
+  colonyCount     Float?
+  standardLimit   Float?
+  reviewer        String?
+  reviewStatus    String   @default("待审核") // 待审核/已审核/退回
+  reviewComment   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SterilizationMonitor {
+  id              String   @id @default(cuid())
+  batchNo         String
+  sterilizer      String?
+  method          String   // 高压蒸汽/环氧乙烷/等离子
+  temperature     Float?
+  pressure        Float?
+  duration        Float?
+  operator        String?
+  sterilizeDate   DateTime
+  bioResult       String?  // 合格/不合格
+  chemResult      String?
+  status          String   @default("待检测") // 待检测/合格/不合格
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OccupationalExposure {
+  id              String   @id @default(cuid())
+  staffName       String
+  staffDept       String
+  exposureType    String   // 针刺伤/血液体液暴露/其他
+  exposureSource  String?
+  exposurePart    String
+  exposureDate    DateTime
+  emergencyAction String?
+  riskLevel       String?  // 高/中/低
+  followUpPlan    String?
+  followUpResult  String?
+  status          String   @default("已上报") // 已上报/评估中/随访中/已结案
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AntibioticUsage {
+  id              String   @id @default(cuid())
+  dept            String
+  month           String   // 2024-01
+  totalPatients   Int
+  antibioticPatients Int
+  usageRate       Float
+  ddd             Float?   // 抗菌药物使用强度
+  preOpProphylaxisRate Float?  // 清洁手术预防用药率
+  preOpTimingRate Float?   // 术前0.5-1h给药率
+  postOp24hStopRate Float? // 术后24h停药率
+  pathogenSendRate Float?  // 治疗用药前送检率
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model HandHygiene {
+  id              String   @id @default(cuid())
+  dept            String
+  month           String
+  totalOpportunities Int
+  compliantActions Int
+  complianceRate  Float
+  beforeContact   Float?   // 接触患者前
+  beforeAseptic   Float?   // 清洁无菌操作前
+  afterContact    Float?   // 接触患者后
+  afterFluid      Float?   // 接触体液后
+  afterSurrounding Float?  // 接触患者周围环境后
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model InfectionReport {
+  id              String   @id @default(cuid())
+  title           String
+  type            String   // 日报/周报/月报/季报/年报/专项
+  period          String
+  content         String
+  author          String?
+  status          String   @default("草稿") // 草稿/已提交/已审核
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

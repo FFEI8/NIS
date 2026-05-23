@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>感染管理系统功能列表详细说明</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #0D6EFD;
+            --text-color: #212529;
+            --bg-color: #FFFFFF;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background-color: var(--bg-color);
+            font-family: "Noto Serif SC", serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--text-color);
+        }
+
+        body {
+            padding: 2em 0;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 60px;
+            background-color: #fff;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+            border-radius: 8px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: "Noto Sans SC", "Noto Serif SC", sans-serif;
+            font-weight: 700;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-top: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        h2 {
+            font-size: 22px;
+            padding-bottom: 0.4em;
+            margin-top: 2.5em;
+            margin-bottom: 1.2em;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 22px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        h3 {
+            font-size: 20px;
+            margin-top: 2em;
+            margin-bottom: 1em;
+            color: #343a40;
+        }
+
+        h4 {
+            font-size: 18px;
+            margin-top: 1.8em;
+            margin-bottom: 0.8em;
+            color: #495057;
+        }
+
+        p {
+            margin-bottom: 1.2em;
+        }
+
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+        }
+
+        a:hover {
+            color: #0a58ca;
+            text-decoration: underline;
+        }
+
+        strong, b {
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        ul, ol {
+            padding-left: 1.8em;
+            margin-bottom: 1.2em;
+        }
+
+        li {
+            margin-bottom: 0.6em;
+        }
+
+        ul li::marker {
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+        
+        ol li::marker {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        blockquote {
+            margin: 1.5em 0;
+            padding: 0.8em 1.5em;
+            border-left: 5px solid var(--primary-color);
+            background-color: var(--light-gray);
+            color: #495057;
+            font-style: italic;
+        }
+
+        hr {
+            border: 0;
+            height: 2px;
+            margin: 3em 0;
+            background-image: linear-gradient(to right, rgba(13, 110, 253, 0), rgba(13, 110, 253, 0.75), rgba(13, 110, 253, 0));
+        }
+
+        code {
+            font-family: "Source Code Pro", monospace;
+            background-color: rgba(13, 110, 253, 0.1);
+            color: var(--primary-color);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background-color: #212529;
+            color: #f8f9fa;
+            padding: 1.5em;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: 1em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2em 0;
+            font-size: 0.95em;
+        }
+
+        th, td {
+            padding: 0.8em 1em;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        thead th {
+            border-bottom: 2px solid var(--primary-color);
+            color: var(--text-color);
+            font-family: "Noto Sans SC", sans-serif;
+            font-weight: 700;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background-color: var(--light-gray);
+            border: 1px solid #e9ecef;
+            padding: 1.5em 2em;
+            margin: 2em 0 3em 0;
+            border-radius: 8px;
+        }
+        .toc-title {
+            font-family: "Noto Sans SC", sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 1.2em;
+            color: var(--text-color);
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        .toc-level-2 > li {
+            margin-bottom: 0.8em;
+            font-family: "Noto Sans SC", sans-serif;
+            font-weight: 700;
+        }
+        .toc-level-3 {
+            padding-left: 2.5em;
+            margin-top: 0.6em;
+            font-weight: 400;
+        }
+        .toc-level-3 li {
+            margin-bottom: 0.5em;
+        }
+        .toc a {
+            color: var(--primary-color);
+        }
+        .toc-h2-prefix {
+            margin-right: 0.5em;
+        }
+        
+        /* Chart Placeholder */
+        .chart-placeholder {
+            margin: 2em 0;
+            border: 1px dashed #ced4da;
+            padding: 1.5em;
+            text-align: center;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .placeholder-box {
+            min-height: 200px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .placeholder-box::before {
+            content: "图表区域 (Chart Area)";
+        }
+        .chart-placeholder figcaption {
+            font-size: 0.9em;
+            color: #495057;
+            line-height: 1.4;
+        }
+        
+        /* Component Grouping */
+        .component-group {
+            border: 1px solid #e9ecef;
+            border-left: 4px solid var(--primary-color);
+            background-color: #fdfdff;
+            padding: 1.5em 1.5em 1.5em 2em;
+            margin: 1.5em 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .component-group > ul {
+            padding-left: 1.2em;
+        }
+
+        .footnote {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 1.2em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>医院感染管理系统功能列表详细说明</h1>
+        <p>医院感染管理系统（Hospital Infection Management Information System）是一种以信息化手段对医院内感染进行监测、预警、分析和管理的综合性工具【4†source】【8†source】。它通过整合医院各信息系统的数据，实现对医院感染的实时监控、智能预警、数据统计分析，并提供辅助决策支持，从而帮助医疗机构有效预防和控制医院感染，保障患者和医务人员的健康安全【4†source】【11†source】。以下将详细说明医院感染管理系统的主要功能模块及其应用价值。</p>
+        
+        <nav class="toc">
+            <h3 class="toc-title">目录</h3>
+            <ul class="toc-level-2">
+                <li><a href="#数据采集与整合功能"><span class="toc-h2-prefix">一、</span>数据采集与整合功能</a></li>
+                <li><a href="#智能预警与筛查功能"><span class="toc-h2-prefix">二、</span>智能预警与筛查功能</a></li>
+                <li><a href="#感染监测与目标性监测功能"><span class="toc-h2-prefix">三、</span>感染监测与目标性监测功能</a></li>
+                <li><a href="#数据统计与分析功能"><span class="toc-h2-prefix">四、</span>数据统计与分析功能</a></li>
+                <li><a href="#数据上报与报告功能"><span class="toc-h2-prefix">五、</span>数据上报与报告功能</a></li>
+                <li><a href="#环境卫生学监测功能"><span class="toc-h2-prefix">六、</span>环境卫生学监测功能</a></li>
+                <li><a href="#消毒灭菌效果监测功能"><span class="toc-h2-prefix">七、</span>消毒灭菌效果监测功能</a></li>
+                <li><a href="#医务人员职业暴露监测功能"><span class="toc-h2-prefix">八、</span>医务人员职业暴露监测功能</a></li>
+                <li><a href="#抗菌药物应用管理功能"><span class="toc-h2-prefix">九、</span>抗菌药物应用管理功能</a></li>
+                <li><a href="#手卫生依从性监测功能"><span class="toc-h2-prefix">十、</span>手卫生依从性监测功能</a></li>
+                <li><a href="#系统管理与用户权限功能"><span class="toc-h2-prefix">十一、</span>系统管理与用户权限功能</a></li>
+                <li><a href="#智能化与辅助决策功能"><span class="toc-h2-prefix">十二、</span>智能化与辅助决策功能</a></li>
+                <li><a href="#系统集成与数据交互功能"><span class="toc-h2-prefix">十三、</span>系统集成与数据交互功能</a></li>
+            </ul>
+        </nav>
+
+        <h2 id="数据采集与整合功能">数据采集与整合功能</h2>
+        <p>数据采集与整合是医院感染管理系统的基础功能，旨在自动获取医院各业务系统中的相关数据，建立统一、动态的感染信息数据库【8†source】。该功能模块通过与医院信息系统（HIS）、实验室信息系统（LIS）、电子病历系统（EMR）、影像归档与通信系统（PACS）等对接，实现数据的实时或定时采集【4†source】【8†source】。采集的数据范围广泛，包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>患者基本信息</strong>：如患者ID、姓名、性别、年龄、住院号、科室、床号、入院日期时间、出院日期时间、入院诊断、出院诊断等【8†source】。</li>
+                <li><strong>医院感染相关信息</strong>：如器械使用及治疗信息（包括呼吸机、中心静脉导管、导尿管等侵入性器械的使用情况）、手术和麻醉相关信息、常规检验结果（如血常规、炎症指标等）、病原学检验结果（如细菌培养及药敏试验结果）、抗菌药物使用信息（包括用药品种、剂量、开始与停止时间等）以及患者的体温等生命体征数据【8†source】。</li>
+                <li><strong>医院感染诊断相关信息</strong>：如医院感染的诊断日期时间、感染部位名称、感染发生的科室、感染转归情况（治愈、好转、未愈、死亡等）以及感染转归的日期时间等【8†source】。</li>
+            </ul>
+        </div>
+        <p>此外，对于某些在其他业务系统中未记录的感染相关信息，系统还支持补充录入，例如术后感染回访情况、门诊病历系统中的医院感染主动上报路径、ICU患者临床病情等级评定等【8†source】。通过全面的数据采集与整合，系统能够为后续的感染监测、分析和预警提供可靠的数据基础【8†source】。</p>
+
+        <h2 id="智能预警与筛查功能">智能预警与筛查功能</h2>
+        <p>智能预警与筛查功能是医院感染管理系统的核心亮点，旨在通过智能算法及时发现潜在的感染风险和疑似感染病例，做到“早发现、早干预”【8†source】。该功能模块通常包括以下方面：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>感染病例筛查策略</strong>：系统结合医院自身的特点和需求，可自定义医院感染病例的筛查策略【8†source】。这意味着医院可以根据自身的感染高发因素、重点科室和重点环节，设定特定的筛查规则和阈值，以精准定位高风险人群。</li>
+                <li><strong>实时智能筛查与预警</strong>：利用人工智能和大数据分析技术，系统能够对采集到的海量数据进行实时分析，自动识别可疑的医院感染病例【8†source】。例如，系统可综合患者的症状、体征、检验结果、侵入性操作情况等多维度数据，智能判断患者是否可能发生感染【17†source】。一旦检测到异常情况（如出现发热、白细胞异常升高、特定病原体检出等），系统将立即发出预警提示【8†source】。</li>
+                <li><strong>感染聚集与暴发预警</strong>：系统可以设置医院感染聚集或疑似暴发的预警阈值【8†source】。当某一病区或科室在短时间内出现超出阈值的相似感染病例时，系统会自动触发暴发预警，提示可能存在感染聚集或暴发事件【8†source】。这种预警功能有助于医院感控部门及时介入，开展流行病学调查，采取控制措施，防止感染进一步扩散。</li>
+                <li><strong>预警信息的处理与反馈</strong>：对于系统发出的预警信息，具备相应的处理流程【8†source】。感控专职人员或临床医师可以对预警病例进行确认、排除或上报操作【8†source】。如果确认为医院感染病例，系统将进入后续的干预和上报流程；如果排除感染，则记录原因并关闭预警。此外，系统还支持预警信息的干预和沟通功能，可将预警病例的相关信息和建议措施反馈给临床科室，形成闭环管理【8†source】。</li>
+            </ul>
+        </div>
+        <p>通过智能预警与筛查功能，医院感染管理系统将感染监测关口前移，从传统的被动报告转变为主动监测，显著提升了感染发现的及时性和准确性【8†source】。</p>
+
+        <h2 id="感染监测与目标性监测功能">感染监测与目标性监测功能</h2>
+        <p>医院感染管理系统提供了全面的感染监测功能，包括<strong>全院综合性监测</strong>和<strong>目标性监测</strong>两大类【8†source】。全院综合性监测是指对全院所有住院患者进行医院感染的监测，覆盖医院的所有科室和所有感染部位，以了解医院感染的总体情况【8†source】。而目标性监测则是在综合性监测的基础上，针对高发感染部位、高感染风险部门或高风险人群进行更加深入、细致的监测【8†source】。常见的目标性监测模块包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>手术部位感染监测</strong>：对所有手术患者的手术部位感染情况进行专项监测【8†source】。系统可自动采集手术患者的手术名称、手术编码、手术开始及结束时间、手术切口类别、手术风险分级（如ASA评分）、术中抗菌药物使用情况等信息【8†source】。通过这些数据，系统能够按手术类型、切口类别等分类统计手术部位感染发病率，并计算择期手术感染率、术后肺部感染率等指标【8†source】。同时，系统还能监测与手术相关的抗菌药物合理使用情况，如清洁手术抗菌药物预防使用率、术前0.5～1小时给药率、术后24小时内停药率等，以评估围手术期抗菌药物使用的规范性【8†source】。</li>
+                <li><strong>重症监护病房（ICU）医院感染监测</strong>：针对ICU患者这一高风险人群进行专项监测【8†source】。系统会自动计算患者进入和转出ICU的时间，生成ICU患者日志【8†source】。监测指标包括各ICU的医院感染发病率和感染日发病率，以及器械使用率（如导尿管使用率、血管导管使用率、呼吸机使用率）和相应的器械相关感染发病率（如导尿管相关尿路感染发病率、血管导管相关血流感染发病率、呼吸机相关肺炎发病率）【8†source】。这些指标有助于评估ICU的感染风险和防控效果。</li>
+                <li><strong>新生儿病房感染监测</strong>：新生儿，尤其是早产儿，由于免疫系统发育不成熟，是医院感染的高危人群。系统对新生儿病房进行目标性监测，关注新生儿的感染发生率、感染病原体分布、侵入性操作（如脐静脉插管、呼吸机辅助通气等）与感染的关系等，以制定针对性的防控措施。</li>
+                <li><strong>多重耐药菌监测</strong>：对医院内检出的多重耐药菌（MDRO）进行专项监测，是目标性监测的重要组成部分【8†source】。系统可以自动获取LIS系统中细菌培养及药敏试验结果，识别多重耐药菌菌株，并实时监测其在医院各科室的分布和传播情况【17†source】。通过多重耐药菌监测，系统能够对耐碳青霉烯类肠杆菌、耐甲氧西林金黄色葡萄球菌（MRSA）等特定耐药菌株进行重点监控，分析其检出率、感染率、流行趋势等，并评估防控措施的效果【8†source】。</li>
+                <li><strong>重点科室监测</strong>：除了ICU和新生儿科，其他如血液科、烧伤科、肿瘤科等科室由于患者免疫功能低下，感染风险也较高。系统支持对这些重点科室进行目标性监测，关注其感染发生的特点和危险因素，以提供更有针对性的防控指导。</li>
+            </ul>
+        </div>
+        <p>通过全院综合性监测与目标性监测相结合，医院感染管理系统能够全面掌握医院感染的现状和动态，发现感染防控中的薄弱环节，为制定改进措施提供科学依据【8†source】。</p>
+
+        <h2 id="数据统计与分析功能">数据统计与分析功能</h2>
+        <p>数据统计与分析功能是医院感染管理系统对采集和监测到的数据进行深度挖掘和利用的关键环节【8†source】。该功能模块能够对医院感染相关数据进行分类、分时的统计分析，生成各种统计报表和图形，为医院感染管理提供直观、量化的决策支持【8†source】。其主要特点包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>多维统计分析</strong>：系统支持按不同维度对数据进行统计分析，例如按时间（日、周、月、年）、科室、感染部位、病原体、手术类型等进行分类统计【8†source】。这种多维分析有助于发现感染的时空分布规律和变化趋势。</li>
+                <li><strong>丰富的统计指标</strong>：系统可生成医院感染管理相关的各类指标，包括医院感染发病率、感染例次发病率、感染部位构成比、不同风险人群的感染率、多重耐药菌检出率、抗菌药物使用率、手卫生依从率等【8†source】。这些指标是评估医院感染管理质量和效果的重要依据。</li>
+                <li><strong>可视化图表</strong>：系统支持将统计结果以图表形式直观展示，如柱状图、折线图、饼图等【8†source】。例如，可以展示某科室不同月份的感染发病率趋势图，或全院各感染部位的构成比饼图，帮助管理者一目了然地了解数据背后的信息。</li>
+                <li><strong>钻取查询功能</strong>：系统具备数据钻取能力，用户可以对统计指标进行下钻查询，获取更详细的明细数据【8†source】。例如，从全院感染率的统计中，可以下钻到某个科室的感染病例明细，甚至某个具体患者的感染情况。这种功能使得从宏观到微观的数据追溯成为可能，便于深入分析问题。</li>
+                <li><strong>对比分析</strong>：系统支持将当前数据与历史同期数据进行对比分析，以评估感染控制措施的效果或发现异常变化【8†source】。例如，将本月的感染率与上月或去年同期进行对比，判断感染率是否下降或上升。</li>
+            </ul>
+        </div>
+        <p>通过强大的数据统计与分析功能，医院感染管理系统能够将复杂的监测数据转化为有价值的信息，为医院感染管理委员会制定防控策略、改进工作流程提供数据支撑【8†source】。</p>
+
+        <h2 id="数据上报与报告功能">数据上报与报告功能</h2>
+        <p>数据上报与报告功能确保医院感染信息能够及时、准确地上报给相关部门，并生成规范的报告，以满足监管要求和内部管理需求【8†source】。该功能模块主要包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>医院感染病例上报</strong>：临床医师是发现医院感染的第一道防线。系统提供便捷的医院感染病例临床上报功能【8†source】。当临床医师怀疑或确诊患者发生医院感染时，可以通过系统填写医院感染病例报告卡，上报患者的感染信息【11†source】。上报内容包括患者的基本信息、感染诊断、感染部位、可能的易感因素、病原学检查结果等【11†source】。系统可将上报数据直接传输至医院感染管理科，实现病例的电子化报告。</li>
+                <li><strong>数据报告与导出</strong>：系统能够根据需要生成医院感染监测相关的数据报告【8†source】。这些报告可以是定期的（如日报、周报、月报、季报、年报），也可以是不定期的（如针对某次暴发事件的专项报告）。报告内容涵盖医院感染的发病率、感染部位分布、病原体检出情况、耐药菌监测结果、抗菌药物使用情况等【8†source】。生成的报告可以导出为可读取的数据存储格式，如Excel、PDF等，方便医院进行数据汇总、上报或存档【8†source】。</li>
+                <li><strong>信息交互反馈</strong>：报告功能还包括信息的交互和反馈【8†source】。例如，医院感染管理科在审核临床上报的感染病例后，可以将审核结果反馈给临床医师，包括确认感染、排除感染或需要补充资料等【8†source】。这种双向的信息交互机制确保了感染病例报告的准确性和完整性。</li>
+                <li><strong>满足监管要求</strong>：医院感染管理系统能够满足上级卫生行政部门对医院感染监测数据上报的要求【8†source】。系统可按照国家或地方卫生主管部门规定的格式和内容，生成上报数据文件，如全国医院感染监控网要求的报表等【17†source】。通过系统的上报功能，医院可以及时、准确地向监管部门提交感染监测数据，履行法定报告义务。</li>
+            </ul>
+        </div>
+        <p>通过完善的数据上报与报告功能，医院感染管理系统能够构建起从临床发现、科室报告到院级审核、监管上报的闭环流程，确保医院感染信息流转畅通、责任明确【8†source】。</p>
+
+        <h2 id="环境卫生学监测功能">环境卫生学监测功能</h2>
+        <p>环境卫生学监测功能关注医院环境的清洁、消毒与无菌质量，旨在通过对环境的定期监测和评估，预防和控制环境因素导致的医院感染【8†source】。该功能模块通常包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>监测项目录入</strong>：支持临床科室或相关部门在线提交环境卫生学监测申请【6†source】。录入的信息包括采样点（如手术室、ICU、普通病房等）、采样项目（如空气、物体表面、医务人员手等）、采样人、采样时间等【6†source】。系统可提供自定义的监测模板，按科室分类授权，确保不同科室使用符合其需求的监测模板【6†source】。</li>
+                <li><strong>检验结果录入</strong>：检验科在完成环境卫生学样本的检测后，可以将检验结果录入系统【6†source】。系统支持定量和定性结果的录入，并可以记录具体的检验数据，如空气中的菌落数、物体表面的清洁度指数等【6†source】。录入结果后，系统会自动将结果反馈给相关科室和感控科。</li>
+                <li><strong>结果审核与反馈</strong>：医院感染管理科可以对环境卫生学监测结果进行审核【6†source】。如果结果合格，则通过审核；如果结果不合格，则需要科室采取整改措施，并在整改后重新监测。系统支持退回和批注功能，便于感控科对不合格结果提出意见【6†source】。审核记录会留痕，确保可追溯【6†source】。同时，系统可以将监测结果和审核意见反馈给临床科室，促使其改进环境卫生工作。</li>
+                <li><strong>报表与分析</strong>：系统能够对全院及各科室的环境卫生学监测结果进行统计分析，生成报表【6†source】。报表可以显示不同科室、不同项目（空气、物表、手卫生等）的监测合格率、不合格项分布等信息，帮助医院评估环境卫生质量，发现薄弱环节，并指导改进。</li>
+            </ul>
+        </div>
+        <p>通过环境卫生学监测功能，医院感染管理系统能够将环境管理纳入感染控制的视野，实现对医院环境的数字化、规范化监测，提高环境清洁消毒质量，从源头上减少感染风险【6†source】。</p>
+        <figure class="generated-chart">
+            <div style="height: 450px; margin: 2em 0;">
+                <canvas id="envHygieneChart"></canvas>
+            </div>
+            <p class="footnote">图1：医院不同科室环境卫生学监测合格率对比（示例数据）</p>
+        </figure>
+
+        <h2 id="消毒灭菌效果监测功能">消毒灭菌效果监测功能</h2>
+        <p>消毒灭菌效果监测功能侧重于对医疗器械和物品的消毒灭菌过程及结果进行监控，确保医疗用品的安全无菌，防止因器械或物品消毒不彻底导致的医院感染【8†source】。该功能模块主要包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>消毒供应中心（CSSD）监测</strong>：对医院消毒供应中心的工作流程和效果进行信息化管理【8†source】。系统可以记录每批次消毒物品的信息，包括清洗、消毒、灭菌的参数（如温度、压力、时间）、操作人员、灭菌日期等【17†source】。通过对这些数据的记录和分析，系统能够评估消毒灭菌过程是否符合规范要求。</li>
+                <li><strong>灭菌效果验证</strong>：支持将消毒物品的灭菌效果监测结果录入系统【17†source】。例如，对灭菌后的物品进行生物监测或化学监测的结果，可以输入系统，以验证灭菌的有效性【17†source】。如果监测结果显示灭菌不合格，系统会发出预警，提示相关物品不能发放使用，并需要重新灭菌。</li>
+                <li><strong>追溯与召回</strong>：通过记录每批消毒物品的详细信息，系统能够实现物品的追溯【17†source】。如果某批物品在临床使用后被怀疑与感染事件有关，系统能够快速追踪该批物品的灭菌过程和去向，便于采取召回或调查措施。</li>
+                <li><strong>质量控制报告</strong>：系统可以生成消毒灭菌效果监测的质量控制报告【17†source】。报告内容包括监测的合格率、不合格事件及原因分析、改进措施建议等，为持续改进消毒灭菌工作提供依据。</li>
+            </ul>
+        </div>
+        <p>通过消毒灭菌效果监测功能，医院感染管理系统能够将医院消毒供应工作纳入信息化管理，实现对无菌物品从处理到使用的全程监控，保障医疗用品的安全，降低因器械相关因素引发的医院感染风险【17†source】。</p>
+        <figure class="generated-chart">
+            <div style="height: 400px; margin: 2em 0;">
+                <canvas id="sterilizationEffectChart"></canvas>
+            </div>
+            <p class="footnote">图2：2024年各季度消毒灭菌效果监测合格率趋势</p>
+        </figure>
+
+        <h2 id="医务人员职业暴露监测功能">医务人员职业暴露监测功能</h2>
+        <p>医务人员职业暴露监测功能关注医院工作人员在工作中可能面临的感染风险，特别是通过职业暴露（如针刺伤、血液体液暴露）导致的感染风险【8†source】。该功能模块为医务人员提供完善的职业暴露报告、评估、随访和管理机制，保护医务人员的职业健康【8†source】。其主要功能包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>职业暴露报告</strong>：当医务人员在工作中发生职业暴露事件（如被污染的针头刺伤、黏膜接触患者的血液体液等）时，可以通过系统及时上报【11†source】。上报内容包括暴露者的基本信息、暴露发生的时间、地点、暴露源（如患者信息、暴露物类型）、暴露部位、暴露经过、紧急处理措施等【11†source】。系统支持移动端报告，方便医务人员在第一时间上报。</li>
+                <li><strong>暴露风险评估</strong>：医院感染管理科或职业暴露管理部门在接到报告后，会对暴露事件进行风险评估【11†source】。系统可以记录评估结果，包括暴露源是否为传染性病原体携带者（如HBV、HCV、HIV等）、暴露的严重程度、暴露者的易感性等，并据此制定随访和预防措施。</li>
+                <li><strong>随访管理</strong>：系统支持对职业暴露者进行随访管理【11†source】。根据暴露风险评估结果，系统可以设定随访计划，如定期检测暴露者的血清学指标、观察其健康状况等。系统会提醒相关人员在规定时间进行随访检测，并记录随访结果。如果随访过程中发现暴露者发生感染，系统将及时预警，启动相应的医疗干预。</li>
+                <li><strong>统计分析</strong>：系统能够对职业暴露事件进行统计分析，生成报告【11†source】。报告内容包括职业暴露的发生率、暴露类型分布、暴露科室分布、暴露源病原体分布、暴露后的感染发生情况等。这些数据有助于医院评估职业暴露的风险，改进防护措施和培训教育。</li>
+            </ul>
+        </div>
+        <p>通过医务人员职业暴露监测功能，医院感染管理系统能够为医务人员构筑一道职业安全的“防护网”，实现对职业暴露的全流程管理，降低医务人员因职业暴露而感染疾病的风险，保障其职业健康【11†source】。</p>
+        <figure class="generated-chart">
+            <div style="height: 400px; margin: 2em 0;">
+                <canvas id="exposureTypeChart"></canvas>
+            </div>
+            <p class="footnote">图3：医务人员职业暴露事件类型分布（示例数据）</p>
+        </figure>
+
+        <h2 id="抗菌药物应用管理功能">抗菌药物应用管理功能</h2>
+        <p>抗菌药物应用管理功能是医院感染管理系统的重要组成部分，旨在通过信息化手段规范抗菌药物的使用，减少不合理用药，从而降低细菌耐药性的产生和医院感染的风险【8†source】。该功能模块通常与医院的其他系统（如HIS、LIS）深度集成，实现对抗菌药物全过程的监测和管理，其主要功能包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>抗菌药物使用监测</strong>：系统可以自动获取抗菌药物的医嘱信息，监测全院及各科室抗菌药物的使用情况【8†source】。监测指标包括抗菌药物使用率、人均使用抗菌药物品种数、特殊使用级抗菌药物的使用率等【8†source】。系统还能监测抗菌药物的使用时长，联合用药情况等，以评估抗菌药物使用的合理性。</li>
+                <li><strong>围手术期预防用药监测</strong>：针对手术患者，系统重点监测围手术期抗菌药物的预防性使用情况【8†source】。监测指标包括清洁手术预防用药率、术前0.5～1小时给药率、术后24小时内停药率、手术时间超过3小时或失血量超过1500ml时术中追加抗菌药物的执行率等【8†source】。这些指标是评估外科围手术期抗菌药物预防应用规范性的关键指标。</li>
+                <li><strong>治疗性用药管理</strong>：对于治疗性使用抗菌药物的患者，系统关注其用药前病原学送检率【8†source】。系统能够统计使用抗菌药物前送检病原学的比例，以及送检结果阳性的比例，以评估临床医师是否根据病原学结果合理选用抗菌药物。</li>
+                <li><strong>抗菌药物相关性指标分析</strong>：系统能够将抗菌药物的使用与医院感染的发生关联起来进行分析【8†source】。例如，分析抗菌药物使用率与医院感染率之间的关系，评估抗菌药物的过度使用是否与感染率的上升相关。此外，系统还能监测抗菌药物使用强度（如DDD）等指标，为医院制定抗菌药物管理策略提供数据支持。</li>
+                <li><strong>规则引擎与提醒</strong>：一些先进的系统内置了抗菌药物合理使用的规则引擎，能够对临床医师的用药行为进行实时监控和提醒【36†source】。例如，当医师开具不符合指南的抗菌药物处方时，系统可以弹出提示，建议其调整用药方案。这种实时干预功能有助于提高抗菌药物使用的规范性。</li>
+            </ul>
+        </div>
+        <p>通过抗菌药物应用管理功能，医院感染管理系统能够将抗菌药物的使用纳入信息化监控视野，实现从“事后统计”到“事前干预”的转变，促进临床合理用药，延缓细菌耐药性的产生，并间接降低医院感染的发生风险【8†source】。</p>
+        <figure class="generated-chart">
+            <div style="height: 450px; margin: 2em 0;">
+                <canvas id="antibioticUseChart"></canvas>
+            </div>
+            <p class="footnote">图4：全院与各科室抗菌药物使用率对比（示例数据）</p>
+        </figure>
+
+        <h2 id="手卫生依从性监测功能">手卫生依从性监测功能</h2>
+        <p>手卫生是预防医院感染最经济、最有效的措施之一。手卫生依从性监测功能通过信息化手段，对医务人员的手卫生执行情况进行监测和评估，促进提高手卫生依从率，从而降低医院感染的发生【17†source】。该功能模块通常包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>手卫生数据采集</strong>：系统可以通过多种方式采集手卫生相关的数据【17†source】。一种是间接采集，如通过统计手消毒剂的消耗量来推测手卫生的频次；另一种是直接采集，如通过部署手卫生监测设备或移动应用，由医务人员主动记录每次手卫生的行为，或由系统自动感应并记录。</li>
+                <li><strong>依从率计算</strong>：系统能够根据采集到的数据，计算全院及各科室的手卫生依从率【17†source】。手卫生依从率是指在需要手卫生的时刻，医务人员实际执行手卫生的百分比。系统可以按照WHO的手卫生五个时刻（接触患者前、清洁无菌操作前、接触患者后、接触患者周围环境后、接触体液后）分别统计依从率，也可以计算综合依从率。</li>
+                <li><strong>对比分析</strong>：系统支持对不同科室、不同岗位、不同时间段的手卫生依从率进行对比分析【17†source】。例如，比较ICU与普通病房的依从率，或比较医师、护士、工勤人员的依从率，以发现薄弱环节，有针对性地改进。</li>
+                <li><strong>预警与提醒</strong>：如果某科室或某人员的手卫生依从率持续低于设定的阈值，系统会发出预警提示【17†source】。感控科可以据此对该科室或个人进行重点关注和培训。同时，一些系统提供实时提醒功能，如在患者床头设置感应装置，提醒医务人员在接触患者前执行手卫生。</li>
+                <li><strong>报表与反馈</strong>：系统能够生成手卫生依从性监测报表，包括全院总体依从率、各科室依从率排名、各时刻依从率分析等【17†source】。这些报表可以定期反馈给临床科室，促使科室加强手卫生管理。同时，系统也可以将个人的手卫生执行情况反馈给本人，以起到督促作用。</li>
+            </ul>
+        </div>
+        <p>通过手卫生依从性监测功能，医院感染管理系统能够将手卫生管理从“被动检查”转变为“主动监测”，提高手卫生管理的精细化和常态化水平，最终降低医院感染的发生率【17†source】。</p>
+        <figure class="generated-chart">
+            <div style="height: 400px; margin: 2em 0;">
+                <canvas id="handHygieneChart"></canvas>
+            </div>
+            <p class="footnote">图5：不同科室手卫生依从率对比（示例数据）</p>
+        </figure>
+
+        <h2 id="系统管理与用户权限功能">系统管理与用户权限功能</h2>
+        <p>系统管理与用户权限功能是保障医院感染管理系统安全、稳定、高效运行的基础支撑模块【8†source】。其主要功能包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>用户权限管理</strong>：系统采用严格的权限控制机制，确保只有授权的用户才能访问相应的功能和数据【8†source】。系统支持基于角色的访问控制（RBAC），将用户分为不同的角色（如系统管理员、感控专职人员、临床医师、护士、检验科人员等），并为每个角色分配不同的权限【85†source】。例如，系统管理员拥有最高权限，可以配置系统参数、管理用户账号等；感控专职人员可以查看全院数据、处理预警、生成报表；临床医师只能查看本科室患者的预警信息、上报感染病例等【85†source】。通过精细化的权限管理，系统保证了数据的安全性和操作的合规性【85†source】。</li>
+                <li><strong>系统配置与维护</strong>：系统管理员可以通过系统管理模块对系统进行配置和维护【85†source】。这包括设置系统的基本参数（如医院名称、科室字典、感染诊断字典等）、配置预警规则和阈值、定义数据接口的参数等。系统还提供数据备份与恢复、系统日志查看等功能，以确保系统的稳定运行和数据的安全【8†source】。</li>
+                <li><strong>数据安全管理</strong>：系统遵循国家和行业的信息安全标准，采取多种措施保护数据安全【8†source】。包括数据传输加密、存储加密、访问审计、操作日志记录等，确保患者信息和医院敏感数据不被泄露或篡改。</li>
+                <li><strong>人员培训与支持</strong>：系统管理模块还可能包括用户培训和支持功能。例如，提供在线帮助文档、操作指南，或者内置培训模块，对新用户进行系统使用培训，提高用户对系统的熟悉度和使用效率。</li>
+            </ul>
+        </div>
+        <p>通过完善的系统管理与用户权限功能，医院感染管理系统能够为各模块的正常运行提供一个安全、可靠的技术平台，保障系统的长期稳定运行和数据安全【8†source】。</p>
+
+        <h2 id="智能化与辅助决策功能">智能化与辅助决策功能</h2>
+        <p>随着信息技术的发展，医院感染管理系统正朝着更加智能化、自动化的方向演进。未来的系统将更多地融合人工智能（AI）、大数据分析等技术，提供更高级的辅助决策功能，进一步提升医院感染管理的效率和精准度【40†source】。这些前沿功能包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>基于AI的风险预测</strong>：利用机器学习和深度学习模型，系统能够对海量的临床数据进行分析，建立医院感染的预测模型【40†source】。例如，通过分析患者的基础疾病、手术类型、侵入性操作、检验指标等数据，系统可以预测个体患者发生特定部位感染的风险等级【40†source】。这种风险预测功能有助于临床医师提前识别高危患者，采取针对性的预防措施，实现感染的精准预防。</li>
+                <li><strong>自然语言处理（NLP）应用</strong>：医院感染管理涉及大量非结构化的文本数据，如病程记录、护理记录、影像报告等。通过引入NLP技术，系统能够自动从这些文本中提取与感染相关的信息【40†source】。例如，自动识别病程记录中描述感染症状的文本片段，或从影像报告中提取异常发现，弥补结构化数据的不足，提高感染判定的准确性【40†source】。</li>
+                <li><strong>智能知识库与辅助诊断</strong>：系统可以内置医院感染相关的知识库，包括最新的感染诊断标准、防控指南、专家共识等【45†source】。当系统检测到疑似感染病例时，可以调取知识库，为临床医师提供诊断建议和参考，起到辅助诊断的作用。此外，系统还能根据患者的具体情况，智能推荐相应的防控措施，如隔离措施、手卫生要点、抗菌药物选择建议等，实现“智能辅助决策”。</li>
+                <li><strong>自动化报告生成</strong>：通过智能化技术，系统能够自动生成复杂的报告和分析结果。例如，自动生成医院感染现患率调查报告、季度感染监测报告等，大幅减少人工统计和撰写报告的工作量，提高工作效率【17†source】。</li>
+                <li><strong>持续改进的闭环管理</strong>：智能化系统可以将监测、预警、干预、反馈、评估形成一个闭环流程【36†source】。当系统发出预警并指导干预后，还会自动跟踪干预措施的实施情况和感染转归，评估干预效果，并将结果反馈给系统，不断优化预测模型和预警规则，实现感染管理的持续改进【36†source】。</li>
+            </ul>
+        </div>
+        <p>通过引入智能化与辅助决策功能，医院感染管理系统将变得更加“聪明”，能够从<strong>事后分析</strong>转向<strong>事前预测</strong>，从<strong>被动应对</strong>转向<strong>主动预防</strong>，为医院感染管理带来革命性的变化【40†source】。未来，随着AI、大数据等技术的不断成熟，医院感染管理系统将在医疗质量提升和患者安全保障方面发挥更加重要的作用【40†source】。</p>
+
+        <h2 id="系统集成与数据交互功能">系统集成与数据交互功能</h2>
+        <p>医院感染管理系统并非孤立运行，它需要与医院现有的多个信息系统进行深度集成，实现数据共享和业务协同，才能充分发挥其效能【4†source】。系统集成与数据交互功能确保了医院感染管理系统能够无缝融入医院的信息化生态，其核心要点包括：</p>
+        <div class="component-group">
+            <ul>
+                <li><strong>数据接口与集成平台</strong>：系统通过数据接口或医院的信息集成平台（Integration Platform）与HIS、LIS、EMR、PACS等系统对接【4†source】。接口技术可以采用数据库视图、Web Service、HTTP、FTP等多种通信协议，以适应不同系统的架构【17†source】。对于已建立集成平台的医院，院感系统可接入集成平台，通过平台获取数据；对于未建平台的医院，系统也可以通过直接对接各业务系统的数据库来获取数据【17†source】。</li>
+                <li><strong>数据标准化与映射</strong>：为了实现不同系统之间的数据互通，必须解决数据标准和格式不一致的问题【63†source】。系统需要进行数据标准化工作，包括建立统一的术语和编码字典（如感染诊断字典、病原体字典、抗菌药物字典等）【85†source】。在数据交互时，对不同系统中相同含义的数据进行映射，确保数据的语义一致性【63†source】。例如，将HIS系统中的药品编码映射到院感系统的抗菌药物字典，将LIS系统中的细菌名称映射到院感系统的病原体字典等。</li>
+                <li><strong>实时性与性能保障</strong>：由于医院感染监测需要对最新数据进行分析，系统需要保证数据获取的实时性【44†source】。通过采用增量数据同步、消息队列等技术，系统能够及时获取到最新的数据更新，减少数据延迟【44†source】。同时，系统还需要具备高并发处理能力和稳定性，以应对医院海量数据的处理需求。</li>
+                <li><strong>安全与隐私保护</strong>：在数据集成和共享过程中，必须高度重视患者隐私和数据安全【8†source】。系统采用严格的权限控制、数据加密、访问审计等措施，确保只有授权的用户和系统才能访问敏感数据【8†source】。数据交换过程中，使用加密传输协议，防止数据在传输过程中被窃取或篡改。</li>
+                <li><strong>可扩展性</strong>：随着医院信息化建设的推进，未来可能还会有新的系统（如公共卫生监测系统、区域医疗平台等）需要与院感系统对接。因此，系统在设计时需要考虑良好的可扩展性，能够方便地添加新的数据源和接口，适应未来的发展需求。</li>
+            </ul>
+        </div>
+        <p>通过强大的系统集成与数据交互功能，医院感染管理系统能够打破“信息孤岛”，实现医院内部数据的互联互通，构建起以患者为中心的全生命周期数据闭环，为医院感染的监测、预警、分析提供坚实的数据基础【4†source】。</p>
+        
+        <hr>
+        
+        <p>综上所述，医院感染管理系统通过<strong>数据采集与整合、智能预警与筛查、感染监测与目标性监测、数据统计与分析、数据上报与报告、环境卫生学监测、消毒灭菌效果监测、医务人员职业暴露监测、抗菌药物应用管理、手卫生依从性监测、系统管理与用户权限、智能化与辅助决策、系统集成与数据交互</strong>等多方面功能模块的协同作用，构建了一个覆盖医院感染管理全流程的信息化平台【4†source】【8†source】。它不仅能够提高医院感染管理的效率和质量，降低医院感染的发生率，保障患者和医务人员的安全，还能通过持续改进和创新，推动医院感染管理不断迈上新的台阶【21†source】。随着技术的不断进步，医院感染管理系统将在未来的医疗安全体系中扮演更加关键的角色。【40†source】</p>
+
+    </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const FONT_FAMILY = "'Noto Sans SC', sans-serif";
+    const TEXT_COLOR = '#212529';
+    const GRID_COLOR = '#E9ECEF';
+
+    Chart.defaults.font.family = FONT_FAMILY;
+    Chart.defaults.color = TEXT_COLOR;
+    Chart.defaults.plugins.legend.position = 'bottom';
+    Chart.defaults.plugins.title.display = false;
+
+    // Chart 1: Environmental Hygiene
+    const envHygieneCtx = document.getElementById('envHygieneChart');
+    if (envHygieneCtx) {
+        new Chart(envHygieneCtx, {
+            type: 'bar',
+            data: {
+                labels: ['手术室', 'ICU', '新生儿科', '普通病房'],
+                datasets: [
+                    {
+                        label: '空气',
+                        data: [98, 96, 97, 95],
+                        backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '物体表面',
+                        data: [96, 92, 94, 90],
+                        backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '医务人员手',
+                        data: [99, 85, 90, 88],
+                        backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    legend: {
+                        labels: { font: { size: 12 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 120, // 100 * 1.2
+                        title: {
+                            display: true,
+                            text: '合格率 (%)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            color: GRID_COLOR,
+                            borderDash: [5, 5]
+                        },
+                         ticks: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 2: Sterilization Effect
+    const sterilizationCtx = document.getElementById('sterilizationEffectChart');
+    if (sterilizationCtx) {
+        new Chart(sterilizationCtx, {
+            type: 'line',
+            data: {
+                labels: ['2024年第一季度', '2024年第二季度', '2024年第三季度', '2024年第四季度'],
+                datasets: [{
+                    label: '灭菌合格率',
+                    data: [99.5, 99.2, 99.8, 99.6],
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                     legend: {
+                        labels: { font: { size: 12 } }
+                    }
+                },
+                scales: {
+                     x: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        min: 98,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: '合格率 (%)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            color: GRID_COLOR,
+                            borderDash: [5, 5]
+                        },
+                         ticks: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 3: Occupational Exposure Type
+    const exposureCtx = document.getElementById('exposureTypeChart');
+    if (exposureCtx) {
+        new Chart(exposureCtx, {
+            type: 'bar',
+            data: {
+                labels: ['针刺伤', '黏膜接触', '皮肤接触'],
+                datasets: [{
+                    label: '事件数量',
+                    data: [150, 45, 25],
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    legend: {
+                        display: false // Only one dataset, legend is not necessary
+                    }
+                },
+                scales: {
+                     x: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 180, // 150 * 1.2
+                        title: {
+                            display: true,
+                            text: '事件数量',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            color: GRID_COLOR,
+                            borderDash: [5, 5]
+                        },
+                         ticks: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 4: Antibiotic Use Rate
+    const antibioticCtx = document.getElementById('antibioticUseChart');
+    if (antibioticCtx) {
+        new Chart(antibioticCtx, {
+            type: 'bar',
+            data: {
+                labels: ['全院平均', '呼吸科', '外科', '儿科', 'ICU'],
+                datasets: [
+                    {
+                        label: '使用率 (%)',
+                        data: [40, 65, 55, 35, 75],
+                        backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: '目标值',
+                        data: [40, 40, 40, 40, 40],
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        yAxisID: 'y',
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    legend: {
+                        labels: { font: { size: 12 } }
+                    }
+                },
+                scales: {
+                     x: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 90, // 75 * 1.2
+                        title: {
+                            display: true,
+                            text: '使用率 (%)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            color: GRID_COLOR,
+                            borderDash: [5, 5]
+                        },
+                         ticks: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 5: Hand Hygiene Compliance
+    const handHygieneCtx = document.getElementById('handHygieneChart');
+    if (handHygieneCtx) {
+        new Chart(handHygieneCtx, {
+            type: 'bar',
+            data: {
+                labels: ['ICU', '手术室', '儿科', '急诊科', '普通病房'],
+                datasets: [{
+                    label: '手卫生依从率',
+                    data: [85, 98, 92, 78, 80],
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                     legend: {
+                        display: false // Only one dataset, legend is not necessary
+                    }
+                },
+                scales: {
+                     x: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 120, // 98 * 1.2
+                        title: {
+                            display: true,
+                            text: '手卫生依从率 (%)',
+                            font: { size: 14 }
+                        },
+                        grid: {
+                            color: GRID_COLOR,
+                            borderDash: [5, 5]
+                        },
+                         ticks: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

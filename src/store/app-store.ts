@@ -1,0 +1,178 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { User, MenuItem } from '@/types';
+
+interface AppState {
+  // Current user info
+  currentUser: User | null;
+  userPermissions: string[];
+  userMenus: MenuItem[];
+
+  // Sidebar state
+  sidebarCollapsed: boolean;
+  activeMenu: string;
+
+  // Loading states
+  loginLoading: boolean;
+  userInfoLoading: boolean;
+
+  // Actions
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  loadUserInfo: () => Promise<void>;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
+  setActiveMenu: (menuCode: string) => void;
+  hasPermission: (permissionCode: string) => boolean;
+  hasAnyPermission: (permissionCodes: string[]) => boolean;
+  hasMenu: (menuCode: string) => boolean;
+  hasRole: (roleCode: string) => boolean;
+}
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      currentUser: null,
+      userPermissions: [],
+      userMenus: [],
+      sidebarCollapsed: false,
+      activeMenu: 'dashboard',
+      loginLoading: false,
+      userInfoLoading: false,
+
+      // Login action
+      login: async (username: string, password: string) => {
+        set({ loginLoading: true });
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (!res.ok) {
+            set({ loginLoading: false });
+            return false;
+          }
+
+          const data = await res.json();
+
+          if (data.success && data.data) {
+            const { user, permissions, menus } = data.data;
+            set({
+              currentUser: user,
+              userPermissions: Array.isArray(permissions) ? (typeof permissions[0] === 'string' ? permissions : permissions.map((p: { code: string }) => p.code)) : [],
+              userMenus: menus ?? [],
+              loginLoading: false,
+            });
+            return true;
+          }
+
+          set({ loginLoading: false });
+          return false;
+        } catch {
+          set({ loginLoading: false });
+          return false;
+        }
+      },
+
+      // Logout action
+      logout: () => {
+        set({
+          currentUser: null,
+          userPermissions: [],
+          userMenus: [],
+          activeMenu: 'dashboard',
+        });
+      },
+
+      // Load user info from API
+      loadUserInfo: async () => {
+        set({ userInfoLoading: true });
+        try {
+          const res = await fetch('/api/auth/me');
+
+          if (!res.ok) {
+            set({ userInfoLoading: false });
+            return;
+          }
+
+          const data = await res.json();
+
+          if (data.success && data.data) {
+            const { user, permissions, menus } = data.data;
+            set({
+              currentUser: user,
+              userPermissions: Array.isArray(permissions) ? (typeof permissions[0] === 'string' ? permissions : permissions.map((p: { code: string }) => p.code)) : [],
+              userMenus: menus ?? [],
+              userInfoLoading: false,
+            });
+          } else {
+            set({ userInfoLoading: false });
+          }
+        } catch {
+          set({ userInfoLoading: false });
+        }
+      },
+
+      // Sidebar actions
+      setSidebarCollapsed: (collapsed: boolean) => {
+        set({ sidebarCollapsed: collapsed });
+      },
+
+      toggleSidebar: () => {
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }));
+      },
+
+      // Active menu actions
+      setActiveMenu: (menuCode: string) => {
+        set({ activeMenu: menuCode });
+      },
+
+      // Permission check - check if current user has a specific permission
+      hasPermission: (permissionCode: string) => {
+        const { userPermissions } = get();
+        return userPermissions.includes(permissionCode);
+      },
+
+      // Check if current user has any of the specified permissions
+      hasAnyPermission: (permissionCodes: string[]) => {
+        const { userPermissions } = get();
+        return permissionCodes.some((code) => userPermissions.includes(code));
+      },
+
+      // Menu check - check if current user has access to a specific menu
+      hasMenu: (menuCode: string) => {
+        const { userMenus } = get();
+
+        const findMenu = (menus: MenuItem[]): boolean => {
+          for (const menu of menus) {
+            if (menu.code === menuCode) return true;
+            if (menu.children?.length && findMenu(menu.children)) return true;
+          }
+          return false;
+        };
+
+        return findMenu(userMenus);
+      },
+
+      // Role check - check if current user has a specific role
+      hasRole: (roleCode: string) => {
+        const { currentUser } = get();
+        if (!currentUser?.roles) return false;
+        return currentUser.roles.some((role) => role.code === roleCode);
+      },
+    }),
+    {
+      name: 'hims-app-store',
+      partialize: (state) => ({
+        currentUser: state.currentUser,
+        userPermissions: state.userPermissions,
+        userMenus: state.userMenus,
+        sidebarCollapsed: state.sidebarCollapsed,
+        activeMenu: state.activeMenu,
+      }),
+    }
+  )
+);
