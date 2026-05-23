@@ -3,7 +3,13 @@ import { db } from '@/lib/db';
 
 export async function POST() {
   try {
-    // Clean all tables
+    // Check if data already exists - skip seed if users table has data
+    const existingUsers = await db.user.count();
+    if (existingUsers > 0) {
+      return NextResponse.json({ success: true, message: '数据已存在，跳过初始化', data: { skipped: true } });
+    }
+
+    // Clean all tables in correct order (respecting foreign keys)
     await db.userRole.deleteMany();
     await db.rolePermission.deleteMany();
     await db.roleMenu.deleteMany();
@@ -20,7 +26,7 @@ export async function POST() {
     await db.permission.deleteMany();
     await db.menu.deleteMany();
 
-    // ========== Create Permissions ==========
+    // ========== Create Permissions (batch) ==========
     const permissionDefs = [
       { code: 'system:user:list', name: '用户列表', type: 'menu', module: '系统管理' },
       { code: 'system:user:add', name: '新增用户', type: 'button', module: '系统管理' },
@@ -60,13 +66,14 @@ export async function POST() {
       { code: 'infection:report:edit', name: '编辑报告', type: 'button', module: '数据分析' },
     ];
 
-    const permissions = [];
-    for (let i = 0; i < permissionDefs.length; i++) {
-      const p = permissionDefs[i];
-      permissions.push(await db.permission.create({ data: { ...p, sort: i } }));
-    }
+    const permissions = await db.permission.createMany({
+      data: permissionDefs.map((p, i) => ({ ...p, sort: i })),
+    });
 
-    // ========== Create Menus ==========
+    // Get created permissions for role assignment
+    const allPermissions = await db.permission.findMany();
+
+    // ========== Create Menus (parent menus first) ==========
     const menuDefs = [
       { name: '首页', code: 'dashboard', path: '/dashboard', icon: 'LayoutDashboard', type: 'menu', sort: 0 },
       { name: '感染监测', code: 'infection-monitor', icon: 'Activity', type: 'directory', sort: 1 },
@@ -90,26 +97,33 @@ export async function POST() {
       { name: '权限管理', code: 'system-permission', path: '/system/permissions', icon: 'KeyRound', type: 'menu', parentCode: 'system', sort: 3 },
     ];
 
+    // Create parent menus first, then children
     const menuMap = new Map<string, string>();
-    const menus = [];
-    for (const def of menuDefs) {
-      const parentId = def.parentCode ? menuMap.get(def.parentCode) || null : null;
+    const parentMenus = menuDefs.filter(d => !d.parentCode);
+    const childMenus = menuDefs.filter(d => d.parentCode);
+
+    for (const def of parentMenus) {
       const m = await db.menu.create({
         data: {
-          parentId,
-          name: def.name,
-          code: def.code,
-          path: def.path || null,
-          icon: def.icon || null,
-          type: def.type,
-          sort: def.sort,
-          visible: 1,
-          status: 1,
+          name: def.name, code: def.code, path: def.path || null,
+          icon: def.icon || null, type: def.type, sort: def.sort, visible: 1, status: 1,
         },
       });
       menuMap.set(def.code, m.id);
-      menus.push(m);
     }
+
+    for (const def of childMenus) {
+      const parentId = menuMap.get(def.parentCode!) || null;
+      const m = await db.menu.create({
+        data: {
+          parentId, name: def.name, code: def.code, path: def.path || null,
+          icon: def.icon || null, type: def.type, sort: def.sort, visible: 1, status: 1,
+        },
+      });
+      menuMap.set(def.code, m.id);
+    }
+
+    const allMenus = await db.menu.findMany();
 
     // ========== Create Roles ==========
     const superAdmin = await db.role.create({ data: { code: 'super_admin', name: '超级管理员', description: '拥有系统所有权限', sort: 0, status: 1 } });
@@ -117,19 +131,19 @@ export async function POST() {
     const clinicalDoctor = await db.role.create({ data: { code: 'clinical_doctor', name: '临床医师', description: '基本查看和上报权限', sort: 2, status: 1 } });
 
     // Assign all permissions & menus to super admin
-    await db.rolePermission.createMany({ data: permissions.map(p => ({ roleId: superAdmin.id, permissionId: p.id })) });
-    await db.roleMenu.createMany({ data: menus.map(m => ({ roleId: superAdmin.id, menuId: m.id })) });
+    await db.rolePermission.createMany({ data: allPermissions.map(p => ({ roleId: superAdmin.id, permissionId: p.id })) });
+    await db.roleMenu.createMany({ data: allMenus.map(m => ({ roleId: superAdmin.id, menuId: m.id })) });
 
     // Assign infection permissions to infection control
-    const infectionPermIds = permissions.filter(p => p.code.startsWith('infection:') || p.code.startsWith('system:role:') || p.code.startsWith('system:menu:')).map(p => p.id);
+    const infectionPermIds = allPermissions.filter(p => p.code.startsWith('infection:') || p.code.startsWith('system:role:') || p.code.startsWith('system:menu:')).map(p => p.id);
     await db.rolePermission.createMany({ data: infectionPermIds.map(pid => ({ roleId: infectionControl.id, permissionId: pid })) });
-    const infectionMenuIds = menus.filter(m => ['dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-target', 'data-analysis', 'data-statistics', 'data-report', 'env-monitor', 'env-hygiene', 'env-sterilization', 'occupational-safety', 'occupational-exposure', 'hand-hygiene', 'antibiotic'].includes(m.code)).map(m => m.id);
+    const infectionMenuIds = allMenus.filter(m => ['dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-target', 'data-analysis', 'data-statistics', 'data-report', 'env-monitor', 'env-hygiene', 'env-sterilization', 'occupational-safety', 'occupational-exposure', 'hand-hygiene', 'antibiotic'].includes(m.code)).map(m => m.id);
     await db.roleMenu.createMany({ data: infectionMenuIds.map(mid => ({ roleId: infectionControl.id, menuId: mid })) });
 
     // Assign basic permissions to clinical doctor
-    const clinicalPermIds = permissions.filter(p => ['infection:case:list', 'infection:case:add', 'infection:warning:list', 'infection:exposure:list', 'infection:exposure:add', 'infection:handhygiene:list'].includes(p.code)).map(p => p.id);
+    const clinicalPermIds = allPermissions.filter(p => ['infection:case:list', 'infection:case:add', 'infection:warning:list', 'infection:exposure:list', 'infection:exposure:add', 'infection:handhygiene:list'].includes(p.code)).map(p => p.id);
     await db.rolePermission.createMany({ data: clinicalPermIds.map(pid => ({ roleId: clinicalDoctor.id, permissionId: pid })) });
-    const clinicalMenuIds = menus.filter(m => ['dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'occupational-safety', 'occupational-exposure', 'hand-hygiene'].includes(m.code)).map(m => m.id);
+    const clinicalMenuIds = allMenus.filter(m => ['dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'occupational-safety', 'occupational-exposure', 'hand-hygiene'].includes(m.code)).map(m => m.id);
     await db.roleMenu.createMany({ data: clinicalMenuIds.map(mid => ({ roleId: clinicalDoctor.id, menuId: mid })) });
 
     // ========== Create Users ==========
@@ -147,210 +161,183 @@ export async function POST() {
       { userId: zlUser.id, roleId: infectionControl.id },
     ] });
 
-    // ========== Create Sample Infection Cases ==========
+    // ========== Create Sample Data (batch) ==========
     const depts = ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '血液科', '肿瘤科'];
     const sites = ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道', '中枢神经'];
     const pathogens = ['大肠埃希菌', '金黄色葡萄球菌', '耐甲氧西林金黄色葡萄球菌(MRSA)', '铜绿假单胞菌', '肺炎克雷伯菌', '耐碳青霉烯类肺炎克雷伯菌(CRKP)', '鲍曼不动杆菌', '白色念珠菌', '表皮葡萄球菌', '阴沟肠杆菌'];
     const outcomes = ['治愈', '好转', '未愈', '死亡'];
     const statuses = ['待审核', '已确认', '已排除'];
 
-    for (let i = 0; i < 25; i++) {
+    // Infection cases (batch)
+    const infectionCasesData = Array.from({ length: 25 }, (_, i) => {
       const infectionDate = new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1);
       const admissionDate = new Date(infectionDate.getTime() - Math.random() * 30 * 86400000);
-      await db.infectionCase.create({
-        data: {
-          patientId: `P${String(20240001 + i).padStart(8, '0')}`,
-          patientName: `${['张', '王', '李', '赵', '刘', '陈', '杨', '黄', '周', '吴'][i % 10]}${['明', '华', '强', '丽', '伟', '芳', '军', '秀', '杰', '敏'][i % 10]}${['', '一', '二', '三'][i % 4]}`,
-          gender: i % 3 === 0 ? '女' : '男',
-          age: 20 + Math.floor(Math.random() * 60),
-          dept: depts[i % depts.length],
-          bedNo: `${Math.floor(i / 5) + 1}${String((i % 8) + 1).padStart(2, '0')}`,
-          admissionDate,
-          infectionDate,
-          infectionSite: sites[i % sites.length],
-          infectionType: '院内感染',
-          pathogen: pathogens[i % pathogens.length],
-          outcome: i % 5 === 0 ? null : outcomes[i % outcomes.length],
-          reporter: [gkUser.name, lsUser.name, wmUser.name][i % 3],
-          status: statuses[i % 3],
-        },
-      });
-    }
+      return {
+        patientId: `P${String(20240001 + i).padStart(8, '0')}`,
+        patientName: `${['张', '王', '李', '赵', '刘', '陈', '杨', '黄', '周', '吴'][i % 10]}${['明', '华', '强', '丽', '伟', '芳', '军', '秀', '杰', '敏'][i % 10]}${['', '一', '二', '三'][i % 4]}`,
+        gender: i % 3 === 0 ? '女' : '男',
+        age: 20 + Math.floor(Math.random() * 60),
+        dept: depts[i % depts.length],
+        bedNo: `${Math.floor(i / 5) + 1}${String((i % 8) + 1).padStart(2, '0')}`,
+        admissionDate,
+        infectionDate,
+        infectionSite: sites[i % sites.length],
+        infectionType: '院内感染',
+        pathogen: pathogens[i % pathogens.length],
+        outcome: i % 5 === 0 ? null : outcomes[i % outcomes.length],
+        reporter: [gkUser.name, lsUser.name, wmUser.name][i % 3],
+        status: statuses[i % 3],
+      };
+    });
+    await db.infectionCase.createMany({ data: infectionCasesData });
 
-    // ========== Create Sample Warnings ==========
-    const warningTypes = ['病例预警', '聚集预警', '暴发预警'];
-    const warningLevels = ['高', '中', '低'];
-    const warningStatuses = ['待处理', '已确认', '已排除', '已处理'];
+    // Warnings (batch)
+    const warningData = Array.from({ length: 15 }, (_, i) => ({
+      patientId: `P${String(20240030 + i).padStart(8, '0')}`,
+      patientName: `${['孙', '周', '吴', '郑', '冯', '褚', '卫', '蒋'][i % 8]}${['文', '武', '成', '康', '德', '建', '国', '安'][i % 8]}`,
+      dept: depts[i % depts.length],
+      warningType: ['病例预警', '聚集预警', '暴发预警'][i % 3],
+      warningLevel: ['高', '中', '低'][i % 3],
+      description: [
+        '患者体温持续升高，白细胞计数异常，疑似院内感染',
+        '同一病区3天内出现2例相同病原体感染，存在聚集风险',
+        'ICU检出多重耐药菌，需关注传播风险',
+        '手术部位出现红肿热痛，疑似手术部位感染',
+        '导尿管相关尿路感染预警，需评估导管必要性',
+        '呼吸机相关肺炎预警，患者新发肺部浸润影',
+        '同一科室感染发病率超出阈值，存在暴发风险',
+        '血流感染预警，血培养阳性结果',
+      ][i % 8],
+      status: ['待处理', '已确认', '已排除', '已处理'][i % 4],
+      handler: i % 2 === 0 ? gkUser.name : null,
+      handleResult: i % 4 === 0 ? '已确认感染，启动防控措施' : i % 4 === 1 ? '排除感染，为其他原因导致' : null,
+      handleTime: i % 2 === 0 ? new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1) : null,
+    }));
+    await db.warningRecord.createMany({ data: warningData });
 
-    for (let i = 0; i < 15; i++) {
-      await db.warningRecord.create({
-        data: {
-          patientId: `P${String(20240030 + i).padStart(8, '0')}`,
-          patientName: `${['孙', '周', '吴', '郑', '冯', '褚', '卫', '蒋'][i % 8]}${['文', '武', '成', '康', '德', '建', '国', '安'][i % 8]}`,
-          dept: depts[i % depts.length],
-          warningType: warningTypes[i % 3],
-          warningLevel: warningLevels[i % 3],
-          description: [
-            '患者体温持续升高，白细胞计数异常，疑似院内感染',
-            '同一病区3天内出现2例相同病原体感染，存在聚集风险',
-            'ICU检出多重耐药菌，需关注传播风险',
-            '手术部位出现红肿热痛，疑似手术部位感染',
-            '导尿管相关尿路感染预警，需评估导管必要性',
-            '呼吸机相关肺炎预警，患者新发肺部浸润影',
-            '同一科室感染发病率超出阈值，存在暴发风险',
-            '血流感染预警，血培养阳性结果',
-          ][i % 8],
-          status: warningStatuses[i % 4],
-          handler: i % 2 === 0 ? gkUser.name : null,
-          handleResult: i % 4 === 0 ? '已确认感染，启动防控措施' : i % 4 === 1 ? '排除感染，为其他原因导致' : null,
-          handleTime: i % 2 === 0 ? new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1) : null,
-        },
-      });
-    }
-
-    // ========== Create Environmental Monitor Records ==========
+    // Environmental monitors (batch)
     const sampleTypes = ['空气', '物体表面', '医务人员手'];
     const samplePoints = ['手术室', 'ICU', '产房', '新生儿室', '供应室', '治疗室', '换药室'];
-
-    for (let i = 0; i < 20; i++) {
+    const envData = Array.from({ length: 20 }, (_, i) => {
       const isQualified = Math.random() > 0.2;
-      await db.environmentalMonitor.create({
-        data: {
-          dept: samplePoints[i % samplePoints.length],
-          samplePoint: samplePoints[i % samplePoints.length],
-          sampleType: sampleTypes[i % 3],
-          sampleDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
-          sampler: [zlUser.name, wmUser.name][i % 2],
-          result: isQualified ? '合格' : '不合格',
-          colonyCount: isQualified ? Math.floor(Math.random() * 3) + 0.5 : Math.floor(Math.random() * 10) + 5,
-          standardLimit: sampleTypes[i % 3] === '空气' ? 4 : sampleTypes[i % 3] === '物体表面' ? 5 : 10,
-          reviewer: i % 3 === 0 ? gkUser.name : null,
-          reviewStatus: i % 5 === 0 ? '待审核' : i % 3 === 0 ? '退回' : '已审核',
-          reviewComment: i % 3 === 0 ? '请重新采样检测' : null,
-        },
-      });
-    }
+      return {
+        dept: samplePoints[i % samplePoints.length],
+        samplePoint: samplePoints[i % samplePoints.length],
+        sampleType: sampleTypes[i % 3],
+        sampleDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+        sampler: [zlUser.name, wmUser.name][i % 2],
+        result: isQualified ? '合格' : '不合格',
+        colonyCount: isQualified ? Math.floor(Math.random() * 3) + 0.5 : Math.floor(Math.random() * 10) + 5,
+        standardLimit: sampleTypes[i % 3] === '空气' ? 4 : sampleTypes[i % 3] === '物体表面' ? 5 : 10,
+        reviewer: i % 3 === 0 ? gkUser.name : null,
+        reviewStatus: i % 5 === 0 ? '待审核' : i % 3 === 0 ? '退回' : '已审核',
+        reviewComment: i % 3 === 0 ? '请重新采样检测' : null,
+      };
+    });
+    await db.environmentalMonitor.createMany({ data: envData });
 
-    // ========== Create Sterilization Monitor Records ==========
+    // Sterilization monitors (batch)
     const methods = ['高压蒸汽', '环氧乙烷', '等离子'];
-    const sterStatuses = ['待检测', '合格', '不合格'];
-
-    for (let i = 0; i < 12; i++) {
+    const sterData = Array.from({ length: 12 }, (_, i) => {
       const isQualified = Math.random() > 0.1;
-      await db.sterilizationMonitor.create({
-        data: {
-          batchNo: `SM${String(2024001 + i).padStart(7, '0')}`,
-          sterilizer: `灭菌器${Math.floor(i / 3) + 1}号`,
-          method: methods[i % 3],
-          temperature: methods[i % 3] === '高压蒸汽' ? 121 + Math.random() * 13 : null,
-          pressure: methods[i % 3] === '高压蒸汽' ? 0.1 + Math.random() * 0.1 : null,
-          duration: methods[i % 3] === '高压蒸汽' ? 20 + Math.random() * 10 : methods[i % 3] === '环氧乙烷' ? 120 + Math.random() * 60 : 30 + Math.random() * 20,
-          operator: wmUser.name,
-          sterilizeDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
-          bioResult: isQualified ? '合格' : '不合格',
-          chemResult: isQualified ? '合格' : '不合格',
-          status: isQualified ? '合格' : '不合格',
-        },
-      });
-    }
+      return {
+        batchNo: `SM${String(2024001 + i).padStart(7, '0')}`,
+        sterilizer: `灭菌器${Math.floor(i / 3) + 1}号`,
+        method: methods[i % 3],
+        temperature: methods[i % 3] === '高压蒸汽' ? 121 + Math.random() * 13 : null,
+        pressure: methods[i % 3] === '高压蒸汽' ? 0.1 + Math.random() * 0.1 : null,
+        duration: methods[i % 3] === '高压蒸汽' ? 20 + Math.random() * 10 : methods[i % 3] === '环氧乙烷' ? 120 + Math.random() * 60 : 30 + Math.random() * 20,
+        operator: wmUser.name,
+        sterilizeDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+        bioResult: isQualified ? '合格' : '不合格',
+        chemResult: isQualified ? '合格' : '不合格',
+        status: isQualified ? '合格' : '不合格',
+      };
+    });
+    await db.sterilizationMonitor.createMany({ data: sterData });
 
-    // ========== Create Occupational Exposure Records ==========
+    // Occupational exposures (batch)
     const exposureTypes = ['针刺伤', '血液体液暴露', '其他'];
     const expStatuses = ['已上报', '评估中', '随访中', '已结案'];
+    const expData = Array.from({ length: 10 }, (_, i) => ({
+      staffName: `${['钱', '孙', '李', '周', '吴', '郑', '王', '冯', '陈', '褚'][i]}${['护士', '医生', '技师', '护理员'][i % 4]}`,
+      staffDept: depts[i % depts.length],
+      exposureType: exposureTypes[i % 3],
+      exposureSource: `患者P${String(20240050 + i).padStart(8, '0')}`,
+      exposurePart: ['左手食指', '右手前臂', '左眼结膜', '口腔黏膜'][i % 4],
+      exposureDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+      emergencyAction: ['立即挤压伤口并冲洗', '立即冲洗消毒', '立即冲洗并报告', '紧急处理后报告'][i % 4],
+      riskLevel: ['高', '中', '低'][i % 3],
+      followUpPlan: i % 2 === 0 ? '随访3个月，检测HBV、HCV、HIV' : '随访6个月，定期检测',
+      followUpResult: i % 4 === 0 ? '随访期未发现感染' : null,
+      status: expStatuses[i % 4],
+    }));
+    await db.occupationalExposure.createMany({ data: expData });
 
-    for (let i = 0; i < 10; i++) {
-      await db.occupationalExposure.create({
-        data: {
-          staffName: `${['钱', '孙', '李', '周', '吴', '郑', '王', '冯', '陈', '褚'][i]}${['护士', '医生', '技师', '护理员'][i % 4]}`,
-          staffDept: depts[i % depts.length],
-          exposureType: exposureTypes[i % 3],
-          exposureSource: `患者P${String(20240050 + i).padStart(8, '0')}`,
-          exposurePart: ['左手食指', '右手前臂', '左眼结膜', '口腔黏膜'][i % 4],
-          exposureDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
-          emergencyAction: ['立即挤压伤口并冲洗', '立即冲洗消毒', '立即冲洗并报告', '紧急处理后报告'][i % 4],
-          riskLevel: warningLevels[i % 3],
-          followUpPlan: i % 2 === 0 ? '随访3个月，检测HBV、HCV、HIV' : '随访6个月，定期检测',
-          followUpResult: i % 4 === 0 ? '随访期未发现感染' : null,
-          status: expStatuses[i % 4],
-        },
-      });
-    }
-
-    // ========== Create Antibiotic Usage Records ==========
+    // Antibiotic usage (batch)
     const abDepts = ['ICU', '外科', '内科', '儿科', '妇产科'];
-
+    const abData: any[] = [];
     for (let m = 7; m <= 12; m++) {
       for (const dept of abDepts) {
         const totalPatients = 80 + Math.floor(Math.random() * 120);
         const rate = dept === 'ICU' ? 60 + Math.random() * 20 : dept === '外科' ? 40 + Math.random() * 15 : 25 + Math.random() * 15;
         const antibioticPatients = Math.round(totalPatients * rate / 100);
-        await db.antibioticUsage.create({
-          data: {
-            dept,
-            month: `2024-${String(m).padStart(2, '0')}`,
-            totalPatients,
-            antibioticPatients,
-            usageRate: Math.round(rate * 100) / 100,
-            ddd: dept === 'ICU' ? 80 + Math.random() * 40 : 30 + Math.random() * 30,
-            preOpProphylaxisRate: dept === '外科' ? 85 + Math.random() * 10 : null,
-            preOpTimingRate: dept === '外科' ? 75 + Math.random() * 15 : null,
-            postOp24hStopRate: dept === '外科' ? 60 + Math.random() * 20 : null,
-            pathogenSendRate: 30 + Math.random() * 30,
-          },
+        abData.push({
+          dept,
+          month: `2024-${String(m).padStart(2, '0')}`,
+          totalPatients,
+          antibioticPatients,
+          usageRate: Math.round(rate * 100) / 100,
+          ddd: dept === 'ICU' ? 80 + Math.random() * 40 : 30 + Math.random() * 30,
+          preOpProphylaxisRate: dept === '外科' ? 85 + Math.random() * 10 : null,
+          preOpTimingRate: dept === '外科' ? 75 + Math.random() * 15 : null,
+          postOp24hStopRate: dept === '外科' ? 60 + Math.random() * 20 : null,
+          pathogenSendRate: 30 + Math.random() * 30,
         });
       }
     }
+    await db.antibioticUsage.createMany({ data: abData });
 
-    // ========== Create Hand Hygiene Records ==========
+    // Hand hygiene (batch)
     const hhDepts = ['ICU', '外科', '内科', '儿科', '妇产科'];
-
+    const hhData: any[] = [];
     for (let m = 7; m <= 12; m++) {
       for (const dept of hhDepts) {
         const total = 200 + Math.floor(Math.random() * 300);
         const baseRate = dept === 'ICU' ? 80 + Math.random() * 10 : 65 + Math.random() * 20;
         const compliant = Math.round(total * baseRate / 100);
-        await db.handHygiene.create({
-          data: {
-            dept,
-            month: `2024-${String(m).padStart(2, '0')}`,
-            totalOpportunities: total,
-            compliantActions: compliant,
-            complianceRate: Math.round(baseRate * 100) / 100,
-            beforeContact: Math.round((baseRate - 5 + Math.random() * 10) * 100) / 100,
-            beforeAseptic: Math.round((baseRate + 5) * 100) / 100,
-            afterContact: Math.round((baseRate + 3 + Math.random() * 5) * 100) / 100,
-            afterFluid: Math.round((baseRate + 8) * 100) / 100,
-            afterSurrounding: Math.round((baseRate - 8 + Math.random() * 5) * 100) / 100,
-          },
+        hhData.push({
+          dept,
+          month: `2024-${String(m).padStart(2, '0')}`,
+          totalOpportunities: total,
+          compliantActions: compliant,
+          complianceRate: Math.round(baseRate * 100) / 100,
+          beforeContact: Math.round((baseRate - 5 + Math.random() * 10) * 100) / 100,
+          beforeAseptic: Math.round((baseRate + 5) * 100) / 100,
+          afterContact: Math.round((baseRate + 3 + Math.random() * 5) * 100) / 100,
+          afterFluid: Math.round((baseRate + 8) * 100) / 100,
+          afterSurrounding: Math.round((baseRate - 8 + Math.random() * 5) * 100) / 100,
         });
       }
     }
+    await db.handHygiene.createMany({ data: hhData });
 
-    // ========== Create Infection Reports ==========
-    const reportTypes = ['月报', '季报', '年报', '专项'];
-    const reportStatuses = ['草稿', '已提交', '已审核'];
+    // Infection reports (batch)
+    const reportData = [
+      { title: '2024年7月医院感染监测月报', type: '月报', period: '2024-07', content: '## 感染监测报告\n\n本周期共监测住院患者XXX人次，发生医院感染XX例次，医院感染发病率X.XX%。\n\n### 重点指标\n- 抗菌药物使用率：XX.X%\n- 手卫生依从率：XX.X%\n- 多重耐药菌检出率：XX.X%\n\n### 建议\n1. 加强手卫生管理\n2. 规范抗菌药物使用\n3. 强化重点科室感染防控', author: gkUser.name, status: '草稿' },
+      { title: '2024年第三季度感染监测季报', type: '季报', period: '2024-Q3', content: '## 第三季度感染监测季报\n\n汇总本季度感染监测数据及分析。', author: gkUser.name, status: '已提交' },
+      { title: 'ICU多重耐药菌专项分析报告', type: '专项', period: '2024-ICU-MDRO', content: '## ICU多重耐药菌专项分析\n\nICU科室MDRO检出率及防控建议。', author: gkUser.name, status: '已审核' },
+      { title: '2024年8月医院感染监测月报', type: '月报', period: '2024-08', content: '## 8月感染监测月报', author: gkUser.name, status: '草稿' },
+      { title: '手术部位感染专项调查报告', type: '专项', period: '2024-SSI', content: '## SSI专项调查报告', author: gkUser.name, status: '已提交' },
+      { title: '2024年9月医院感染监测月报', type: '月报', period: '2024-09', content: '## 9月感染监测月报', author: gkUser.name, status: '草稿' },
+    ];
+    await db.infectionReport.createMany({ data: reportData });
 
-    for (let i = 0; i < 6; i++) {
-      await db.infectionReport.create({
-        data: {
-          title: [
-            '2024年7月医院感染监测月报',
-            '2024年第三季度感染监测季报',
-            'ICU多重耐药菌专项分析报告',
-            '2024年8月医院感染监测月报',
-            '手术部位感染专项调查报告',
-            '2024年9月医院感染监测月报',
-          ][i],
-          type: reportTypes[i % 4],
-          period: ['2024-07', '2024-Q3', '2024-ICU-MDRO', '2024-08', '2024-SSI', '2024-09'][i],
-          content: `## 感染监测报告\n\n本周期共监测住院患者XXX人次，发生医院感染XX例次，医院感染发病率X.XX%。\n\n### 重点指标\n- 抗菌药物使用率：XX.X%\n- 手卫生依从率：XX.X%\n- 多重耐药菌检出率：XX.X%\n\n### 建议\n1. 加强手卫生管理\n2. 规范抗菌药物使用\n3. 强化重点科室感染防控`,
-          author: gkUser.name,
-          status: reportStatuses[i % 3],
-        },
-      });
-    }
-
-    return NextResponse.json({ success: true, message: '数据库初始化成功', data: { users: 5, roles: 3, permissions: permissions.length, menus: menus.length } });
+    return NextResponse.json({
+      success: true,
+      message: '数据库初始化成功',
+      data: { users: 5, roles: 3, permissions: permissionDefs.length, menus: menuDefs.length }
+    });
   } catch (error: any) {
     console.error('Seed error:', error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
