@@ -237,3 +237,119 @@ model InfectionReport {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ============ 传染病管理模块 ============
+
+model InfectiousDiseaseCase {
+  id                String   @id @default(cuid())
+  patientId         String
+  patientName       String
+  gender            String
+  age               Int
+  idCard            String?  // 身份证号
+  phone             String?  // 联系电话
+  address           String?  // 现住址
+  dept              String   // 报告科室
+  bedNo             String?
+  admissionDate     DateTime? // 入院日期
+  onsetDate         DateTime? // 发病日期
+  diagnosisDate     DateTime  // 诊断日期
+  reportDate        DateTime  @default(now()) // 报告日期
+  diseaseName       String   // 传染病名称
+  diseaseCode       String?  // ICD-10编码
+  diseaseCategory   String   // 甲类/乙类/丙类/其他
+  reportType        String   @default("初次报告") // 初次报告/订正报告/转归报告
+  infectionSource   String?  // 感染来源
+  clinicalDiagnosis String?  // 临床诊断
+  labResult         String?  // 实验室检测结果
+  severity          String   @default("普通") // 轻症/普通/重症/危重症
+  outcome           String?  // 治愈/好转/未愈/死亡/其他
+  outcomeDate       DateTime?
+  isolationType     String?  // 居家隔离/集中隔离/住院隔离/无需隔离
+  isolationDate     DateTime?
+  reporter          String?  // 报告人
+  reviewer          String?  // 审核人
+  reviewComment     String?  // 审核意见
+  status            String   @default("待审核") // 待审核/已审核/退回/已上报/已结案
+  reportToCDC       Int      @default(0) // 是否已上报CDC 0=否 1=是
+  reportToCDCTime   DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ContactTracing {
+  id                String   @id @default(cuid())
+  caseId            String   // 关联的传染病病例ID
+  casePatientName   String   // 病例患者姓名
+  contactName       String   // 接触者姓名
+  contactIdCard     String?  // 接触者身份证号
+  contactPhone      String?  // 接触者电话
+  contactAddress    String?  // 接触者住址
+  gender            String?
+  age               Int?
+  relationship      String   // 与患者关系：家属/同事/同病室/医护/其他
+  contactType       String   // 密切接触/一般接触
+  contactDate       DateTime // 接触日期
+  contactDuration   String?  // 接触时长
+  contactLocation   String?  // 接触地点
+  exposureLevel     String   // 高/中/低
+  symptomStatus     String   @default("无症状") // 无症状/有症状/已确诊
+  symptomDetail     String?  // 症状详情
+  quarantineType    String?  // 居家隔离/集中隔离/自我健康监测/无需隔离
+  quarantineStart   DateTime?
+  quarantineEnd     DateTime?
+  testResult        String?  // 阴性/阳性/未检测
+  testDate          DateTime?
+  followUpStatus    String   @default("待随访") // 待随访/随访中/已解除/已转确诊
+  followUpPerson    String?  // 随访人
+  lastFollowUpDate  DateTime?
+  remark            String?
+  status            String   @default("待确认") // 待确认/已确认/已排除/已解除
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SymptomSurveillance {
+  id                String   @id @default(cuid())
+  dept              String   // 科室
+  patientId         String?  // 患者ID（可为门诊患者）
+  patientName       String
+  gender            String?
+  age               Int?
+  temperature       Float?   // 体温
+  symptomGroup      String   // 症状群：发热/腹泻/皮疹/呼吸道/神经系统/出血热/其他
+  symptomDetail     String   // 症状详情
+  onsetDate         DateTime // 发病日期
+  reportDate        DateTime @default(now())
+  reporter          String?  // 报告人
+  isClustered       Int      @default(0) // 是否聚集性 0=否 1=是
+  clusterId         String?  // 聚集性事件ID
+  alertTriggered    Int      @default(0) // 是否触发预警 0=否 1=是
+  alertId           String?  // 关联预警ID
+  preliminaryJudge  String?  // 初步判断
+  handlingMeasure   String?  // 处置措施
+  status            String   @default("待核实") // 待核实/已核实/排除/已预警
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model DiseaseAlert {
+  id                String   @id @default(cuid())
+  alertType         String   // 法定传染病预警/聚集性疫情预警/症状监测预警/输入性传染病预警
+  alertLevel        String   // 红色/橙色/黄色/蓝色
+  diseaseName       String?  // 传染病名称
+  alertSource       String   // 病例上报/症状监测/系统自动/人工上报
+  triggerRule       String?  // 触发规则描述
+  relatedCaseIds    String?  // 关联病例ID（逗号分隔）
+  relatedSymptomIds String?  // 关联症状监测ID（逗号分隔）
+  affectedDept      String?  // 涉及科室
+  affectedCount     Int      @default(0) // 涉及人数
+  description       String   // 预警描述
+  suggestion        String?  // 处置建议
+  handler           String?  // 处理人
+  handleResult      String?  // 处理结果
+  handleTime        DateTime?
+  status            String   @default("待处理") // 待处理/处理中/已处理/已关闭
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
