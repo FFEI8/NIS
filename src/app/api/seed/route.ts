@@ -25,6 +25,7 @@ export async function POST() {
     await db.symptomSurveillance.deleteMany();
     await db.diseaseAlert.deleteMany();
     await db.infectiousDiseaseCase.deleteMany();
+    await db.warningRule.deleteMany();
     await db.user.deleteMany();
     await db.role.deleteMany();
     await db.permission.deleteMany();
@@ -85,6 +86,12 @@ export async function POST() {
       { code: 'id:alert:list', name: '传染病预警列表', type: 'menu', module: '传染病管理' },
       { code: 'id:alert:handle', name: '处理传染病预警', type: 'button', module: '传染病管理' },
       { code: 'id:dashboard:view', name: '疫情看板查看', type: 'menu', module: '传染病管理' },
+      // 预警规则管理权限
+      { code: 'warning:rule:list', name: '预警规则列表', type: 'menu', module: '感染监测' },
+      { code: 'warning:rule:add', name: '新增预警规则', type: 'button', module: '感染监测' },
+      { code: 'warning:rule:edit', name: '编辑预警规则', type: 'button', module: '感染监测' },
+      { code: 'warning:rule:delete', name: '删除预警规则', type: 'button', module: '感染监测' },
+      { code: 'warning:rule:toggle', name: '启用/禁用规则', type: 'button', module: '感染监测' },
     ];
 
     const permissions = await db.permission.createMany({
@@ -101,7 +108,8 @@ export async function POST() {
       { name: '感染监测', code: 'infection-monitor', icon: 'Activity', type: 'directory', sort: 1 },
       { name: '感染病例', code: 'infection-case', path: '/infection/cases', icon: 'FileText', type: 'menu', parentCode: 'infection-monitor', sort: 0 },
       { name: '智能预警', code: 'infection-warning', path: '/infection/warnings', icon: 'AlertTriangle', type: 'menu', parentCode: 'infection-monitor', sort: 1 },
-      { name: '目标监测', code: 'infection-target', path: '/infection/target', icon: 'Target', type: 'menu', parentCode: 'infection-monitor', sort: 2 },
+      { name: '预警规则', code: 'infection-warning-rules', path: '/infection/warning-rules', icon: 'Settings2', type: 'menu', parentCode: 'infection-monitor', sort: 2 },
+      { name: '目标监测', code: 'infection-target', path: '/infection/target', icon: 'Target', type: 'menu', parentCode: 'infection-monitor', sort: 3 },
       // 传染病管理 (between infection-monitor=1 and data-analysis=3)
       { name: '传染病管理', code: 'infectious-disease', icon: 'Biohazard', type: 'directory', sort: 2 },
       { name: '病例上报', code: 'id-case-report', path: '/infectious-disease/case-report', icon: 'Syringe', type: 'menu', parentCode: 'infectious-disease', sort: 0 },
@@ -168,12 +176,13 @@ export async function POST() {
     const infectionPermIds = allPermissions.filter(p =>
       p.code.startsWith('infection:') ||
       p.code.startsWith('id:') ||
+      p.code.startsWith('warning:') ||
       p.code.startsWith('system:role:') ||
       p.code.startsWith('system:menu:')
     ).map(p => p.id);
     await db.rolePermission.createMany({ data: infectionPermIds.map(pid => ({ roleId: infectionControl.id, permissionId: pid })) });
     const infectionMenuIds = allMenus.filter(m => [
-      'dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-target',
+      'dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-warning-rules', 'infection-target',
       'infectious-disease', 'id-case-report', 'id-contact-tracing', 'id-symptom-surveillance', 'id-epidemic-dashboard', 'id-disease-alert',
       'data-analysis', 'data-statistics', 'data-report',
       'env-monitor', 'env-hygiene', 'env-sterilization',
@@ -1020,6 +1029,131 @@ export async function POST() {
       },
     ];
     await db.diseaseAlert.createMany({ data: diseaseAlertData });
+
+    // ========== 预警规则配置 - Sample Data ==========
+    const warningRuleData = [
+      {
+        name: 'ICU感染发病率超标预警', code: 'WR_ICU_INF_RATE', category: '感染监测', ruleType: '阈值预警',
+        description: 'ICU科室月度感染发病率超过5%时自动触发预警，需关注院感防控措施落实情况',
+        conditionType: '大于', conditionField: 'infectionRate', conditionOperator: 'gt', conditionValue: '5',
+        timeWindow: 720, warningLevel: '高', warningType: '暴发预警',
+        targetDepts: 'ICU', targetSites: null, targetDiseases: null,
+        actionType: 'escalate', cooldownMinutes: 1440, priority: 10,
+        isSystem: 1, enabled: 1, triggerCount: 3, lastTriggeredAt: new Date(2024, 11, 5),
+        createdBy: '系统',
+      },
+      {
+        name: '科室感染发病率预警', code: 'WR_DEPT_INF_RATE', category: '感染监测', ruleType: '阈值预警',
+        description: '任意科室月度感染发病率超过3%时触发预警',
+        conditionType: '大于', conditionField: 'infectionRate', conditionOperator: 'gt', conditionValue: '3',
+        timeWindow: 720, warningLevel: '中', warningType: '聚集预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 1440, priority: 5,
+        isSystem: 1, enabled: 1, triggerCount: 12, lastTriggeredAt: new Date(2024, 10, 20),
+        createdBy: '系统',
+      },
+      {
+        name: '甲类传染病即时预警', code: 'WR_CLASS_A_ID', category: '传染病管理', ruleType: '时效预警',
+        description: '发现甲类传染病（鼠疫、霍乱）或按甲类管理的传染病时，2小时内必须上报，系统自动触发最高级别预警',
+        conditionType: '等于', conditionField: 'notifiableDisease', conditionOperator: 'eq', conditionValue: '甲类',
+        timeWindow: 2, warningLevel: '高', warningType: '暴发预警',
+        targetDepts: null, targetSites: null, targetDiseases: '霍乱,鼠疫',
+        actionType: 'escalate', cooldownMinutes: 30, priority: 20,
+        isSystem: 1, enabled: 1, triggerCount: 2, lastTriggeredAt: new Date(2024, 1, 4),
+        createdBy: '系统',
+      },
+      {
+        name: '乙类传染病24小时上报预警', code: 'WR_CLASS_B_ID', category: '传染病管理', ruleType: '时效预警',
+        description: '发现乙类传染病后，24小时内未完成上报则自动触发预警提醒',
+        conditionType: '时间超限', conditionField: 'notifiableDisease', conditionOperator: 'timeout', conditionValue: '乙类',
+        timeWindow: 24, warningLevel: '中', warningType: '病例预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 60, priority: 15,
+        isSystem: 1, enabled: 1, triggerCount: 5, lastTriggeredAt: new Date(2024, 10, 14),
+        createdBy: '系统',
+      },
+      {
+        name: '同科室3例聚集性感染预警', code: 'WR_CLUSTER_3', category: '感染监测', ruleType: '聚集预警',
+        description: '同一科室7天内出现3例及以上相同部位感染时，触发聚集性预警',
+        conditionType: '大于', conditionField: 'caseCount', conditionOperator: 'gte', conditionValue: '3',
+        timeWindow: 168, warningLevel: '高', warningType: '聚集预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'escalate', cooldownMinutes: 360, priority: 8,
+        isSystem: 1, enabled: 1, triggerCount: 1, lastTriggeredAt: new Date(2024, 8, 15),
+        createdBy: '系统',
+      },
+      {
+        name: '多重耐药菌检出预警', code: 'WR_MDRO_DETECT', category: '感染监测', ruleType: '阈值预警',
+        description: '检出多重耐药菌（MRSA/CRKP/CRAB等）时自动触发预警，需关注接触隔离措施',
+        conditionType: '大于', conditionField: 'mdroCount', conditionOperator: 'gt', conditionValue: '0',
+        timeWindow: 24, warningLevel: '中', warningType: '病例预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 120, priority: 6,
+        isSystem: 1, enabled: 1, triggerCount: 8, lastTriggeredAt: new Date(2024, 11, 1),
+        createdBy: '系统',
+      },
+      {
+        name: '环境菌落超标预警', code: 'WR_ENV_COLONY', category: '环境监测', ruleType: '阈值预警',
+        description: '环境卫生监测中菌落数超过标准限值时触发预警',
+        conditionType: '大于', conditionField: 'colonyCount', conditionOperator: 'gt', conditionValue: 'standardLimit',
+        timeWindow: 24, warningLevel: '中', warningType: '环境预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 120, priority: 4,
+        isSystem: 1, enabled: 1, triggerCount: 4, lastTriggeredAt: new Date(2024, 9, 10),
+        createdBy: '系统',
+      },
+      {
+        name: '手卫生依从率偏低预警', code: 'WR_HAND_HYGIENE', category: '职业安全', ruleType: '阈值预警',
+        description: '科室月度手卫生依从率低于70%时触发预警',
+        conditionType: '小于', conditionField: 'handHygieneRate', conditionOperator: 'lt', conditionValue: '70',
+        timeWindow: 720, warningLevel: '低', warningType: '职业暴露预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 1440, priority: 2,
+        isSystem: 1, enabled: 1, triggerCount: 6, lastTriggeredAt: new Date(2024, 10, 5),
+        createdBy: '系统',
+      },
+      {
+        name: '发热症状聚集预警', code: 'WR_FEVER_CLUSTER', category: '症状监测', ruleType: '聚集预警',
+        description: '同一科室3天内出现5例及以上发热（体温≥38℃）患者时触发预警',
+        conditionType: '大于', conditionField: 'feverCount', conditionOperator: 'gte', conditionValue: '5',
+        timeWindow: 72, warningLevel: '高', warningType: '聚集预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'escalate', cooldownMinutes: 240, priority: 9,
+        isSystem: 1, enabled: 1, triggerCount: 2, lastTriggeredAt: new Date(2024, 7, 20),
+        createdBy: '系统',
+      },
+      {
+        name: '职业暴露频次预警', code: 'WR_EXPOSURE_FREQ', category: '职业安全', ruleType: '趋势预警',
+        description: '科室月度职业暴露事件超过3次时触发预警，需加强职业安全培训',
+        conditionType: '大于', conditionField: 'exposureCount', conditionOperator: 'gt', conditionValue: '3',
+        timeWindow: 720, warningLevel: '中', warningType: '职业暴露预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 1440, priority: 3,
+        isSystem: 1, enabled: 1, triggerCount: 1, lastTriggeredAt: new Date(2024, 6, 15),
+        createdBy: '系统',
+      },
+      {
+        name: '抗菌药物使用率超标预警', code: 'WR_ABX_USAGE', category: '感染监测', ruleType: '阈值预警',
+        description: '科室住院患者抗菌药物使用率超过60%时触发预警（ICU不超过80%）',
+        conditionType: '大于', conditionField: 'infectionRate', conditionOperator: 'gt', conditionValue: '60',
+        timeWindow: 720, warningLevel: '低', warningType: '病例预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 1440, priority: 1,
+        isSystem: 1, enabled: 0, triggerCount: 0, lastTriggeredAt: null,
+        createdBy: '系统',
+      },
+      {
+        name: '腹泻症状聚集预警', code: 'WR_DIARRHEA_CLUSTER', category: '症状监测', ruleType: '聚集预警',
+        description: '同一科室3天内出现3例及以上腹泻患者时触发预警',
+        conditionType: '大于', conditionField: 'diarrheaCount', conditionOperator: 'gte', conditionValue: '3',
+        timeWindow: 72, warningLevel: '中', warningType: '聚集预警',
+        targetDepts: null, targetSites: null, targetDiseases: null,
+        actionType: 'notify', cooldownMinutes: 360, priority: 7,
+        isSystem: 1, enabled: 1, triggerCount: 0, lastTriggeredAt: null,
+        createdBy: '系统',
+      },
+    ];
+    await db.warningRule.createMany({ data: warningRuleData });
 
     return NextResponse.json({
       success: true,

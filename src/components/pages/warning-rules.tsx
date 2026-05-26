@@ -1,0 +1,600 @@
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+import { useAppStore } from '@/store/app-store';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { DataTable, Pagination } from '@/components/shared/data-table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  AlertTriangle, Search, Plus, Edit, Trash2, Settings2, Zap, Clock, Shield,
+  TrendingUp, Activity, Eye, ToggleLeft, ToggleRight, Copy, Info, ChevronDown,
+} from 'lucide-react';
+
+// ============ Rule type / category mapping ============
+const RULE_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  '阈值预警': { label: '阈值预警', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
+  '趋势预警': { label: '趋势预警', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  '聚集预警': { label: '聚集预警', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  '时效预警': { label: '时效预警', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
+  '复合规则': { label: '复合规则', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+};
+
+const CATEGORY_MAP: Record<string, { label: string; color: string }> = {
+  '感染监测': { label: '感染监测', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  '传染病管理': { label: '传染病管理', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
+  '环境监测': { label: '环境监测', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
+  '职业安全': { label: '职业安全', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  '症状监测': { label: '症状监测', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+};
+
+const LEVEL_COLORS: Record<string, string> = {
+  '高': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20',
+  '中': 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20',
+  '低': 'text-slate-500 bg-slate-50 dark:text-slate-400 dark:bg-slate-800/50',
+};
+
+const OPERATOR_LABELS: Record<string, string> = {
+  'gt': '大于', 'lt': '小于', 'eq': '等于', 'gte': '大于等于', 'lte': '小于等于',
+  'contains': '包含', 'rising': '趋势上升', 'falling': '趋势下降', 'timeout': '超时',
+};
+
+const ACTION_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
+  'notify': { label: '发送通知', icon: <Zap size={12} /> },
+  'escalate': { label: '预警升级', icon: <TrendingUp size={12} /> },
+  'block': { label: '阻断操作', icon: <Shield size={12} /> },
+};
+
+// ============ Rule Detail Dialog ============
+function RuleDetailDialog({ open, onClose, rule }: { open: boolean; onClose: () => void; rule: any }) {
+  if (!rule) return null;
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 size={20} className="text-emerald-500" /> 规则详情
+          </DialogTitle>
+          <DialogDescription>查看预警规则的完整配置信息</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <div>
+              <div className="font-semibold text-slate-800 dark:text-slate-200">{rule.name}</div>
+              <div className="text-xs text-slate-500 mt-0.5">编码: {rule.code}</div>
+            </div>
+            <div className="flex gap-2">
+              {rule.isSystem === 1 && <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400 text-[10px]">系统内置</Badge>}
+              <Badge className={rule.enabled === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}>{rule.enabled === 1 ? '已启用' : '已禁用'}</Badge>
+            </div>
+          </div>
+
+          {/* Rule info grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: '规则分类', value: rule.category, render: () => <Badge className={CATEGORY_MAP[rule.category]?.color || ''}>{rule.category}</Badge> },
+              { label: '规则类型', value: rule.ruleType, render: () => <Badge className={RULE_TYPE_MAP[rule.ruleType]?.color || ''}>{rule.ruleType}</Badge> },
+              { label: '预警级别', value: rule.warningLevel, render: () => <span className={`px-2 py-0.5 rounded text-xs font-medium ${LEVEL_COLORS[rule.warningLevel] || ''}`}>{rule.warningLevel}</span> },
+              { label: '预警类型', value: rule.warningType, render: () => <span className="text-sm text-slate-700 dark:text-slate-300">{rule.warningType}</span> },
+              { label: '监测字段', value: rule.conditionField, render: () => <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{rule.conditionField}</code> },
+              { label: '条件运算', value: rule.conditionOperator, render: () => <span className="text-sm">{OPERATOR_LABELS[rule.conditionOperator] || rule.conditionOperator}</span> },
+              { label: '条件阈值', value: rule.conditionValue, render: () => <span className="text-sm font-medium text-rose-600 dark:text-rose-400">{rule.conditionValue}</span> },
+              { label: '时间窗口', value: `${rule.timeWindow}小时`, render: () => <span className="text-sm">{rule.timeWindow}小时</span> },
+              { label: '触发动作', value: rule.actionType, render: () => <span className="flex items-center gap-1 text-sm">{ACTION_LABELS[rule.actionType]?.icon}{ACTION_LABELS[rule.actionType]?.label}</span> },
+              { label: '冷却时间', value: `${rule.cooldownMinutes}分钟`, render: () => <span className="text-sm">{rule.cooldownMinutes}分钟</span> },
+              { label: '优先级', value: rule.priority, render: () => <span className="text-sm font-medium">{rule.priority}</span> },
+              { label: '累计触发', value: rule.triggerCount, render: () => <span className="text-sm font-medium text-amber-600">{rule.triggerCount}次</span> },
+            ].map((item, i) => (
+              <div key={i} className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+                <div className="text-[10px] text-slate-400 mb-1">{item.label}</div>
+                {item.render()}
+              </div>
+            ))}
+          </div>
+
+          {/* Description */}
+          <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+            <div className="text-[10px] text-slate-400 mb-1">规则描述</div>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{rule.description}</p>
+          </div>
+
+          {/* Target scope */}
+          {(rule.targetDepts || rule.targetSites || rule.targetDiseases) && (
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1.5">适用范围</div>
+              <div className="flex flex-wrap gap-1.5">
+                {rule.targetDepts && rule.targetDepts.split(',').map((d: string) => (
+                  <Badge key={d} variant="outline" className="text-[10px]">{d}</Badge>
+                ))}
+                {rule.targetSites && rule.targetSites.split(',').map((s: string) => (
+                  <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
+                ))}
+                {rule.targetDiseases && rule.targetDiseases.split(',').map((d: string) => (
+                  <Badge key={d} variant="outline" className="text-[10px]">{d}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Last triggered */}
+          {rule.lastTriggeredAt && (
+            <div className="text-xs text-slate-400">
+              <Clock size={12} className="inline mr-1" />
+              最后触发: {new Date(rule.lastTriggeredAt).toLocaleString('zh-CN')}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>关闭</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============ Rule Form Dialog ============
+function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const [form, setForm] = useState({
+    name: '', code: '', category: '感染监测', ruleType: '阈值预警', description: '',
+    conditionType: '大于', conditionField: 'infectionRate', conditionOperator: 'gt',
+    conditionValue: '', timeWindow: 24, warningLevel: '中', warningType: '病例预警',
+    targetDepts: '', targetSites: '', targetDiseases: '',
+    actionType: 'notify', cooldownMinutes: 60, priority: 0,
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm({
+        name: item.name || '', code: item.code || '', category: item.category || '感染监测',
+        ruleType: item.ruleType || '阈值预警', description: item.description || '',
+        conditionType: item.conditionType || '大于', conditionField: item.conditionField || 'infectionRate',
+        conditionOperator: item.conditionOperator || 'gt', conditionValue: item.conditionValue || '',
+        timeWindow: item.timeWindow || 24, warningLevel: item.warningLevel || '中',
+        warningType: item.warningType || '病例预警', targetDepts: item.targetDepts || '',
+        targetSites: item.targetSites || '', targetDiseases: item.targetDiseases || '',
+        actionType: item.actionType || 'notify', cooldownMinutes: item.cooldownMinutes || 60,
+        priority: item.priority || 0,
+      });
+    } else {
+      // Auto-generate code
+      setForm(f => ({ ...f, code: `WR${Date.now().toString(36).toUpperCase()}` }));
+    }
+  }, [item]);
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.code || !form.conditionValue) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  };
+
+  const updateField = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 size={20} /> {item ? '编辑预警规则' : '新建预警规则'}
+          </DialogTitle>
+          <DialogDescription>{item ? '修改预警规则配置' : '配置智能预警规则参数'}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5 py-2">
+          {/* Basic Info */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Info size={14} className="text-emerald-500" /> 基本信息
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则名称 <span className="text-red-500">*</span></label>
+                <Input value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="如：ICU感染率超标预警" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则编码 <span className="text-red-500">*</span></label>
+                <Input value={form.code} onChange={e => updateField('code', e.target.value)} placeholder="系统自动生成" disabled={!!item} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则分类</label>
+                <select value={form.category} onChange={e => updateField('category', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则类型</label>
+                <select value={form.ruleType} onChange={e => updateField('ruleType', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {['阈值预警', '趋势预警', '聚集预警', '时效预警', '复合规则'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则描述</label>
+              <textarea value={form.description} onChange={e => updateField('description', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 min-h-[60px]"
+                placeholder="描述此预警规则的用途和触发场景" />
+            </div>
+          </div>
+
+          {/* Trigger Condition */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Zap size={14} className="text-amber-500" /> 触发条件
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">监测字段</label>
+                <select value={form.conditionField} onChange={e => updateField('conditionField', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  <optgroup label="感染监测">
+                    <option value="infectionRate">感染发病率(%)</option>
+                    <option value="caseCount">新增病例数</option>
+                    <option value="mdroCount">多重耐药菌数</option>
+                  </optgroup>
+                  <optgroup label="传染病管理">
+                    <option value="notifiableDisease">法定传染病报告</option>
+                    <option value="clusterCount">聚集性病例数</option>
+                    <option value="idCaseCount">传染病新增病例</option>
+                  </optgroup>
+                  <optgroup label="环境监测">
+                    <option value="colonyCount">菌落数</option>
+                    <option value="envUnqualifiedRate">环境不合格率(%)</option>
+                    <option value="sterilizationFail">灭菌不合格</option>
+                  </optgroup>
+                  <optgroup label="职业安全">
+                    <option value="exposureCount">职业暴露次数</option>
+                    <option value="handHygieneRate">手卫生依从率(%)</option>
+                  </optgroup>
+                  <optgroup label="症状监测">
+                    <option value="feverCount">发热人数</option>
+                    <option value="diarrheaCount">腹泻人数</option>
+                    <option value="rashCount">皮疹人数</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">运算符</label>
+                <select value={form.conditionOperator} onChange={e => updateField('conditionOperator', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {Object.entries(OPERATOR_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">阈值 <span className="text-red-500">*</span></label>
+                <Input value={form.conditionValue} onChange={e => updateField('conditionValue', e.target.value)} placeholder="如: 5, 10%" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">时间窗口（小时）</label>
+                <Input type="number" value={form.timeWindow} onChange={e => updateField('timeWindow', parseInt(e.target.value) || 24)} min={1} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">条件类型</label>
+                <select value={form.conditionType} onChange={e => updateField('conditionType', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {['大于', '小于', '等于', '包含', '趋势上升', '趋势下降', '时间超限'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning Config */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <AlertTriangle size={14} className="text-rose-500" /> 预警配置
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警级别</label>
+                <select value={form.warningLevel} onChange={e => updateField('warningLevel', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {['高', '中', '低'].map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警类型</label>
+                <select value={form.warningType} onChange={e => updateField('warningType', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {['病例预警', '聚集预警', '暴发预警', '环境预警', '职业暴露预警'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">触发动作</label>
+                <select value={form.actionType} onChange={e => updateField('actionType', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Scope */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Activity size={14} className="text-sky-500" /> 适用范围（留空则适用全部）
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">适用科室</label>
+                <Input value={form.targetDepts} onChange={e => updateField('targetDepts', e.target.value)} placeholder="如: ICU,外科" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">适用感染部位</label>
+                <Input value={form.targetSites} onChange={e => updateField('targetSites', e.target.value)} placeholder="如: 呼吸道,泌尿道" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">适用传染病</label>
+                <Input value={form.targetDiseases} onChange={e => updateField('targetDiseases', e.target.value)} placeholder="如: 新冠,肺结核" />
+              </div>
+            </div>
+          </div>
+
+          {/* Other */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">冷却时间（分钟）</label>
+              <Input type="number" value={form.cooldownMinutes} onChange={e => updateField('cooldownMinutes', parseInt(e.target.value) || 60)} min={0} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">优先级</label>
+              <Input type="number" value={form.priority} onChange={e => updateField('priority', parseInt(e.target.value) || 0)} min={0} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button onClick={handleSubmit} disabled={saving || !form.name || !form.conditionValue} className="bg-emerald-600 hover:bg-emerald-500">
+            {saving ? '保存中...' : '保存规则'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============ Main Page ============
+export default function WarningRulesPage() {
+  const [data, setData] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState({ category: '', ruleType: '', enabled: '', keyword: '' });
+  const [showForm, setShowForm] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [detailItem, setDetailItem] = useState<any>(null);
+  const currentUser = useAppStore(s => s.currentUser);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), pageSize: '20', ...filter });
+    try {
+      const res = await fetch(`/api/warning-rules?${params}`);
+      const d = await res.json();
+      if (d.success) { setData(d.data.items); setTotal(d.data.total); }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [page, filter]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
+
+  const handleSave = async (formData: any) => {
+    const url = editItem ? `/api/warning-rules/${editItem.id}` : '/api/warning-rules';
+    const method = editItem ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, createdBy: currentUser?.name }) });
+    if (res.ok) { setShowForm(false); setEditItem(null); fetchData(); }
+  };
+
+  const handleEdit = (row: any) => { setEditItem(row); setShowForm(true); };
+
+  const handleDelete = async (row: any) => {
+    if (row.isSystem === 1) { alert('系统内置规则不可删除'); return; }
+    if (!confirm('确定要删除此预警规则吗？')) return;
+    await fetch(`/api/warning-rules/${row.id}`, { method: 'DELETE' });
+    fetchData();
+  };
+
+  const handleToggle = async (row: any) => {
+    const newEnabled = row.enabled === 1 ? 0 : 1;
+    await fetch(`/api/warning-rules/${row.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: newEnabled }) });
+    fetchData();
+  };
+
+  const handleDuplicate = async (row: any) => {
+    const { id, createdAt, updatedAt, triggerCount, lastTriggeredAt, ...rest } = row;
+    await fetch('/api/warning-rules', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...rest, name: `${rest.name} (副本)`, code: `WR${Date.now().toString(36).toUpperCase()}`, triggerCount: 0, lastTriggeredAt: null, isSystem: 0 }),
+    });
+    fetchData();
+  };
+
+  const handleViewDetail = (row: any) => { setDetailItem(row); setShowDetail(true); };
+
+  const columns = [
+    {
+      key: 'name', label: '规则名称',
+      render: (v: string, row: any) => (
+        <div>
+          <div className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            {v}
+            {row.isSystem === 1 && <Badge className="bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 text-[9px] py-0">内置</Badge>}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{row.code}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'category', label: '分类',
+      render: (v: string) => <Badge className={CATEGORY_MAP[v]?.color || 'bg-slate-100 text-slate-600'}>{v}</Badge>,
+    },
+    {
+      key: 'ruleType', label: '类型',
+      render: (v: string) => <Badge className={RULE_TYPE_MAP[v]?.color || 'bg-slate-100 text-slate-600'}>{v}</Badge>,
+    },
+    {
+      key: 'condition', label: '触发条件',
+      render: (_: any, row: any) => (
+        <div className="text-xs text-slate-600 dark:text-slate-400">
+          <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded text-[10px]">{row.conditionField}</code>
+          {' '}{OPERATOR_LABELS[row.conditionOperator] || row.conditionOperator}{' '}
+          <span className="font-medium text-rose-600 dark:text-rose-400">{row.conditionValue}</span>
+          <span className="text-slate-400 ml-1">({row.timeWindow}h)</span>
+        </div>
+      ),
+    },
+    {
+      key: 'warningLevel', label: '预警级别',
+      render: (v: string) => <span className={`px-2 py-0.5 rounded text-xs font-medium ${LEVEL_COLORS[v] || ''}`}>{v}</span>,
+    },
+    {
+      key: 'enabled', label: '状态',
+      render: (v: number) => <StatusBadge status={v === 1 ? '已启用' : '已禁用'} />,
+    },
+    {
+      key: 'triggerCount', label: '触发次数',
+      render: (v: number) => <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{v}</span>,
+    },
+  ];
+
+  // Stats
+  const enabledCount = data.filter(r => r.enabled === 1).length;
+  const systemCount = data.filter(r => r.isSystem === 1).length;
+  const totalTriggers = data.reduce((s: number, r: any) => s + (r.triggerCount || 0), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+          <Settings2 size={22} className="text-emerald-500" /> 智能预警规则
+        </h2>
+        <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="bg-emerald-600 hover:bg-emerald-500 gap-1.5">
+          <Plus size={16} /> 新建规则
+        </Button>
+      </div>
+      <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">配置智能预警触发规则，实现自动监测与实时预警</p>
+
+      {/* Quick stats */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: '总规则数', value: data.length, icon: <Settings2 size={16} className="text-slate-500" />, color: 'bg-slate-50 dark:bg-slate-800' },
+          { label: '已启用', value: enabledCount, icon: <ToggleRight size={16} className="text-emerald-500" />, color: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { label: '系统内置', value: systemCount, icon: <Shield size={16} className="text-sky-500" />, color: 'bg-sky-50 dark:bg-sky-900/20' },
+          { label: '累计触发', value: totalTriggers, icon: <Zap size={16} className="text-amber-500" />, color: 'bg-amber-50 dark:bg-amber-900/20' },
+        ].map((s, i) => (
+          <div key={i} className={`p-3 rounded-lg border border-slate-200 dark:border-slate-700 ${s.color} flex items-center gap-3`}>
+            {s.icon}
+            <div>
+              <div className="text-lg font-bold text-slate-800 dark:text-slate-200">{s.value}</div>
+              <div className="text-[10px] text-slate-500">{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex-wrap">
+        <Input placeholder="搜索规则名称/编码" value={filter.keyword} onChange={e => setFilter(f => ({ ...f, keyword: e.target.value }))}
+          className="w-48" />
+        <select value={filter.category} onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          <option value="">全部分类</option>
+          {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测'].map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filter.ruleType} onChange={e => setFilter(f => ({ ...f, ruleType: e.target.value }))}
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          <option value="">全部类型</option>
+          {['阈值预警', '趋势预警', '聚集预警', '时效预警', '复合规则'].map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select value={filter.enabled} onChange={e => setFilter(f => ({ ...f, enabled: e.target.value }))}
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          <option value="">全部状态</option>
+          <option value="1">已启用</option>
+          <option value="0">已禁用</option>
+        </select>
+        <Button variant="outline" size="sm" onClick={() => setPage(1)} className="gap-1.5">
+          <Search size={14} /> 查询
+        </Button>
+      </div>
+
+      {/* Table with custom actions */}
+      <div className="space-y-2">
+        {loading ? (
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                  {columns.map(col => <th key={col.key} className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">{col.label}</th>)}
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100 dark:border-slate-700">
+                    {columns.map(col => <td key={col.key} className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>)}
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                  {columns.map(col => <th key={col.key} className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">{col.label}</th>)}
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.length === 0 ? (
+                  <tr><td colSpan={columns.length + 1} className="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
+                    <div className="flex flex-col items-center gap-2"><Settings2 size={32} className="text-slate-300 dark:text-slate-600" /><span>暂无预警规则</span></div>
+                  </td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id || i} className={`border-b border-slate-100 dark:border-slate-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors ${i % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''}`}>
+                    {columns.map(col => (
+                      <td key={col.key} className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        {col.render ? col.render(row[col.key], row) : row[col.key]}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewDetail(row)} className="h-7 text-xs gap-1 text-slate-600"><Eye size={12} />详情</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleToggle(row)} className={`h-7 text-xs gap-1 ${row.enabled === 1 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {row.enabled === 1 ? <><ToggleLeft size={12} />禁用</> : <><ToggleRight size={12} />启用</>}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(row)} className="h-7 text-xs gap-1"><Edit size={12} />编辑</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDuplicate(row)} className="h-7 text-xs gap-1 text-sky-600"><Copy size={12} />复制</Button>
+                        {row.isSystem !== 1 && (
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} className="h-7 text-xs gap-1 text-red-600"><Trash2 size={12} />删除</Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination page={page} total={total} onPageChange={setPage} />
+      </div>
+
+      {/* Dialogs */}
+      {showForm && <WarningRuleForm item={editItem} onSave={handleSave} onClose={() => { setShowForm(false); setEditItem(null); }} />}
+      {showDetail && <RuleDetailDialog open={showDetail} rule={detailItem} onClose={() => { setShowDetail(false); setDetailItem(null); }} />}
+    </div>
+  );
+}

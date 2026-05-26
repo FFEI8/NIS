@@ -333,6 +333,38 @@ model SymptomSurveillance {
   updatedAt         DateTime @updatedAt
 }
 
+// ============ 预警规则配置模块 ============
+
+model WarningRule {
+  id                String   @id @default(cuid())
+  name              String   // 规则名称
+  code              String   @unique // 规则编码
+  category          String   // 规则分类：感染监测/传染病管理/环境监测/职业安全/症状监测
+  ruleType          String   // 规则类型：阈值预警/趋势预警/聚集预警/时效预警/复合规则
+  description       String   // 规则描述
+  conditionType     String   // 条件类型：大于/小于/等于/包含/趋势上升/趋势下降/时间超限
+  conditionField    String   // 监测字段（如 infectionRate, caseCount, colonyCount 等）
+  conditionOperator String   // 运算符：gt/lt/eq/gte/lte/contains/rising/falling/timeout
+  conditionValue    String   // 阈值/条件值
+  timeWindow        Int      @default(24) // 时间窗口（小时）
+  warningLevel      String   @default("中") // 触发预警级别：高/中/低
+  warningType       String   @default("病例预警") // 预警类型：病例预警/聚集预警/暴发预警/环境预警/职业暴露预警
+  targetDepts       String?  // 适用科室（逗号分隔，空=全部科室）
+  targetSites       String?  // 适用感染部位（逗号分隔）
+  targetDiseases    String?  // 适用传染病（逗号分隔）
+  actionType        String   @default("notify") // 触发动作：notify=通知/escalate=升级/block=阻断
+  actionConfig      String?  // 动作配置（JSON格式，如通知人列表、升级规则等）
+  cooldownMinutes   Int      @default(60) // 冷却时间（分钟），同一规则重复触发的最小间隔
+  priority          Int      @default(0) // 优先级，数值越大优先级越高
+  isSystem          Int      @default(0) // 是否系统内置规则 0=否 1=是（系统规则不可删除）
+  enabled           Int      @default(1) // 是否启用 0=禁用 1=启用
+  triggerCount      Int      @default(0) // 累计触发次数
+  lastTriggeredAt   DateTime? // 最后触发时间
+  createdBy         String?  // 创建人
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 model DiseaseAlert {
   id                String   @id @default(cuid())
   alertType         String   // 法定传染病预警/聚集性疫情预警/症状监测预警/输入性传染病预警
