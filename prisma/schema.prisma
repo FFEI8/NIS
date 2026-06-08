@@ -333,6 +333,68 @@ model SymptomSurveillance {
   updatedAt         DateTime @updatedAt
 }
 
+// ============ 微生物检验数据模块 ============
+
+model MicroLabResult {
+  id              String   @id @default(cuid())
+  testId          String?  // 检验ID
+  patientId       String   // 患者ID
+  patientName     String?  // 患者姓名
+  visitId         String?  // 住院号
+  orderNo         String?  // 医嘱号
+  dept            String?  // 科室
+  bedNo           String?  // 床号
+  specimenType    String   // 标本类型：痰液/尿液/血液/分泌物/肺泡灌洗液等
+  specimenNo      String?  // 标本编号
+  collectTime     DateTime? // 采集时间
+  receiveTime     DateTime? // 接收时间
+  reportTime      DateTime? // 报告时间
+  reportItemName  String   // 检验项目名称（如：鲍曼不动杆菌[CRAB]）
+  reportItemCode  String?  // 检验项目编码
+  resultValue     String?  // 结果值（如：≥10^5CFU/ml, +++）
+  resultText      String?  // 结果文本
+  unit            String?  // 单位
+  referenceRange  String?  // 参考范围
+  isAbnormal      Int      @default(0) // 是否异常 0=否 1=是
+  isMDRO          Int      @default(0) // 是否多重耐药菌 0=否 1=是
+  mdroType        String?  // 耐药菌类型：CRAB/CRKP/MRSA/VRE/CRPA等
+  organismName    String?  // 菌名
+  antibioticResult String? // 药敏结果（JSON格式）
+  instrument      String?  // 检测仪器
+  operator        String?  // 操作者/报告人
+  reviewer        String?  // 审核人
+  remarks         String?  // 备注
+  warningTriggered Int     @default(0) // 是否已触发预警 0=否 1=是
+  warningId       String?  // 关联预警ID
+  status          String   @default("已审核") // 待审核/已审核/退回
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WarningRuleLog {
+  id              String   @id @default(cuid())
+  ruleId          String   // 规则ID
+  ruleName        String   // 规则名称
+  ruleCode        String   // 规则编码
+  triggerSource   String   // 触发来源：micro_lab/infection_case/symptom/environment
+  sourceId        String?  // 触发源记录ID
+  sourceType      String?  // 触发源类型
+  sourceDetail    String?  // 触发源详情（JSON）
+  patientId       String?  // 患者ID
+  dept            String?  // 科室
+  warningLevel    String   // 预警级别
+  warningType     String   // 预警类型
+  actionTaken     String   // 执行的动作：notify/escalate/block
+  actionResult    String?  // 动作执行结果
+  warningRecordId String?  // 关联的预警记录ID
+  status          String   @default("已触发") // 已触发/已处理/已忽略
+  handler         String?  // 处理人
+  handleResult    String?  // 处理结果
+  handleTime      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 // ============ 预警规则配置模块 ============
 
 model WarningRule {

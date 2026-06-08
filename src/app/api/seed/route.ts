@@ -26,6 +26,8 @@ export async function POST() {
     await db.diseaseAlert.deleteMany();
     await db.infectiousDiseaseCase.deleteMany();
     await db.warningRule.deleteMany();
+    await db.microLabResult.deleteMany();
+    await db.warningRuleLog.deleteMany();
     await db.user.deleteMany();
     await db.role.deleteMany();
     await db.permission.deleteMany();
@@ -92,6 +94,10 @@ export async function POST() {
       { code: 'warning:rule:edit', name: '编辑预警规则', type: 'button', module: '感染监测' },
       { code: 'warning:rule:delete', name: '删除预警规则', type: 'button', module: '感染监测' },
       { code: 'warning:rule:toggle', name: '启用/禁用规则', type: 'button', module: '感染监测' },
+      // 微生物检验权限
+      { code: 'micro:lab:list', name: '微生物检验列表', type: 'menu', module: '感染监测' },
+      { code: 'micro:lab:add', name: '新增微生物检验', type: 'button', module: '感染监测' },
+      { code: 'micro:lab:import', name: '导入微生物数据', type: 'button', module: '感染监测' },
     ];
 
     const permissions = await db.permission.createMany({
@@ -109,7 +115,8 @@ export async function POST() {
       { name: '感染病例', code: 'infection-case', path: '/infection/cases', icon: 'FileText', type: 'menu', parentCode: 'infection-monitor', sort: 0 },
       { name: '智能预警', code: 'infection-warning', path: '/infection/warnings', icon: 'AlertTriangle', type: 'menu', parentCode: 'infection-monitor', sort: 1 },
       { name: '预警规则', code: 'infection-warning-rules', path: '/infection/warning-rules', icon: 'Settings2', type: 'menu', parentCode: 'infection-monitor', sort: 2 },
-      { name: '目标监测', code: 'infection-target', path: '/infection/target', icon: 'Target', type: 'menu', parentCode: 'infection-monitor', sort: 3 },
+      { name: '微生物检验', code: 'micro-lab-results', path: '/infection/micro-lab', icon: 'Microscope', type: 'menu', parentCode: 'infection-monitor', sort: 3 },
+      { name: '目标监测', code: 'infection-target', path: '/infection/target', icon: 'Target', type: 'menu', parentCode: 'infection-monitor', sort: 4 },
       // 传染病管理 (between infection-monitor=1 and data-analysis=3)
       { name: '传染病管理', code: 'infectious-disease', icon: 'Biohazard', type: 'directory', sort: 2 },
       { name: '病例上报', code: 'id-case-report', path: '/infectious-disease/case-report', icon: 'Syringe', type: 'menu', parentCode: 'infectious-disease', sort: 0 },
@@ -177,12 +184,13 @@ export async function POST() {
       p.code.startsWith('infection:') ||
       p.code.startsWith('id:') ||
       p.code.startsWith('warning:') ||
+      p.code.startsWith('micro:') ||
       p.code.startsWith('system:role:') ||
       p.code.startsWith('system:menu:')
     ).map(p => p.id);
     await db.rolePermission.createMany({ data: infectionPermIds.map(pid => ({ roleId: infectionControl.id, permissionId: pid })) });
     const infectionMenuIds = allMenus.filter(m => [
-      'dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-warning-rules', 'infection-target',
+      'dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-warning-rules', 'micro-lab-results', 'infection-target',
       'infectious-disease', 'id-case-report', 'id-contact-tracing', 'id-symptom-surveillance', 'id-epidemic-dashboard', 'id-disease-alert',
       'data-analysis', 'data-statistics', 'data-report',
       'env-monitor', 'env-hygiene', 'env-sterilization',
@@ -1154,6 +1162,184 @@ export async function POST() {
       },
     ];
     await db.warningRule.createMany({ data: warningRuleData });
+
+    // ========== MDRO Warning Rules - 5 key bacteria + cluster rule ==========
+    const mdroRules = [
+      {
+        name: '鲍曼不动杆菌(CRAB)检出预警',
+        code: 'WR-MDRO-CRAB',
+        category: '感染监测',
+        ruleType: '阈值预警',
+        description: '检出耐碳青霉烯类鲍曼不动杆菌(CRAB)时自动触发预警，重点关注ICU、呼吸科等高危科室',
+        conditionType: '包含',
+        conditionField: 'mdroDetection',
+        conditionOperator: 'contains',
+        conditionValue: '鲍曼不动杆菌',
+        timeWindow: 24,
+        warningLevel: '高',
+        warningType: '病例预警',
+        targetDepts: 'ICU,呼吸科,神经外科',
+        targetSites: '呼吸道,血流',
+        targetDiseases: null,
+        actionType: 'notify',
+        actionConfig: '{"notifyRoles":["infection_control","clinical_doctor"],"notifyMessage":"检出耐碳青霉烯类鲍曼不动杆菌(CRAB)，请立即采取接触隔离措施"}',
+        cooldownMinutes: 60,
+        priority: 10,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 3,
+        lastTriggeredAt: new Date('2024-12-15'),
+        createdBy: 'system',
+      },
+      {
+        name: '肺炎克雷伯菌(CRKP)检出预警',
+        code: 'WR-MDRO-CRKP',
+        category: '感染监测',
+        ruleType: '阈值预警',
+        description: '检出耐碳青霉烯类肺炎克雷伯菌(CRKP)时自动触发预警，需关注血流感染和尿路感染',
+        conditionType: '包含',
+        conditionField: 'mdroDetection',
+        conditionOperator: 'contains',
+        conditionValue: '肺炎克雷伯菌',
+        timeWindow: 24,
+        warningLevel: '高',
+        warningType: '病例预警',
+        targetDepts: 'ICU,外科,内科',
+        targetSites: '血流,泌尿道,呼吸道',
+        targetDiseases: null,
+        actionType: 'notify',
+        actionConfig: '{"notifyRoles":["infection_control"],"notifyMessage":"检出耐碳青霉烯类肺炎克雷伯菌(CRKP)，请立即采取接触隔离措施"}',
+        cooldownMinutes: 60,
+        priority: 10,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 2,
+        lastTriggeredAt: new Date('2024-12-10'),
+        createdBy: 'system',
+      },
+      {
+        name: '金黄色葡萄球菌(MRSA)检出预警',
+        code: 'WR-MDRO-MRSA',
+        category: '感染监测',
+        ruleType: '阈值预警',
+        description: '检出耐甲氧西林金黄色葡萄球菌(MRSA)时自动触发预警，需加强接触隔离和手卫生',
+        conditionType: '包含',
+        conditionField: 'mdroDetection',
+        conditionOperator: 'contains',
+        conditionValue: '金黄色葡萄球菌',
+        timeWindow: 24,
+        warningLevel: '中',
+        warningType: '病例预警',
+        targetDepts: 'ICU,外科,骨科',
+        targetSites: '手术部位,呼吸道,血流',
+        targetDiseases: null,
+        actionType: 'notify',
+        actionConfig: '{"notifyRoles":["infection_control","clinical_doctor"],"notifyMessage":"检出耐甲氧西林金黄色葡萄球菌(MRSA)，请加强接触隔离和手卫生管理"}',
+        cooldownMinutes: 60,
+        priority: 8,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 5,
+        lastTriggeredAt: new Date('2024-12-12'),
+        createdBy: 'system',
+      },
+      {
+        name: '屎肠球菌(VRE)检出预警',
+        code: 'WR-MDRO-VRE',
+        category: '感染监测',
+        ruleType: '阈值预警',
+        description: '检出耐万古霉素屎肠球菌(VRE)时自动触发预警，需严格执行接触隔离措施',
+        conditionType: '包含',
+        conditionField: 'mdroDetection',
+        conditionOperator: 'contains',
+        conditionValue: '屎肠球菌',
+        timeWindow: 24,
+        warningLevel: '高',
+        warningType: '病例预警',
+        targetDepts: 'ICU,血液科,肿瘤科',
+        targetSites: '血流,泌尿道',
+        targetDiseases: null,
+        actionType: 'escalate',
+        actionConfig: '{"notifyRoles":["infection_control","department_head"],"notifyMessage":"检出耐万古霉素屎肠球菌(VRE)，需严格执行接触隔离，立即上报科主任"}',
+        cooldownMinutes: 30,
+        priority: 12,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 1,
+        lastTriggeredAt: new Date('2024-11-20'),
+        createdBy: 'system',
+      },
+      {
+        name: '铜绿假单胞菌(CRPA)检出预警',
+        code: 'WR-MDRO-CRPA',
+        category: '感染监测',
+        ruleType: '阈值预警',
+        description: '检出耐碳青霉烯类铜绿假单胞菌(CRPA)时自动触发预警，重点关注呼吸机和导管相关感染',
+        conditionType: '包含',
+        conditionField: 'mdroDetection',
+        conditionOperator: 'contains',
+        conditionValue: '铜绿假单胞菌',
+        timeWindow: 24,
+        warningLevel: '中',
+        warningType: '病例预警',
+        targetDepts: 'ICU,呼吸科,烧伤科',
+        targetSites: '呼吸道,泌尿道,手术部位',
+        targetDiseases: null,
+        actionType: 'notify',
+        actionConfig: '{"notifyRoles":["infection_control"],"notifyMessage":"检出耐碳青霉烯类铜绿假单胞菌(CRPA)，请关注呼吸机和导管相关感染防控"}',
+        cooldownMinutes: 60,
+        priority: 8,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 4,
+        lastTriggeredAt: new Date('2024-12-14'),
+        createdBy: 'system',
+      },
+      {
+        name: '多重耐药菌聚集预警',
+        code: 'WR-MDRO-CLUSTER',
+        category: '感染监测',
+        ruleType: '聚集预警',
+        description: '同一科室7天内检出3例及以上同种多重耐药菌时触发聚集预警，提示可能存在院内传播',
+        conditionType: '大于等于',
+        conditionField: 'mdroCount',
+        conditionOperator: 'gte',
+        conditionValue: '3',
+        timeWindow: 168,
+        warningLevel: '高',
+        warningType: '聚集预警',
+        targetDepts: null,
+        targetSites: null,
+        targetDiseases: null,
+        actionType: 'escalate',
+        actionConfig: '{"notifyRoles":["infection_control","department_head","hospital_admin"],"notifyMessage":"同一科室7天内检出3例及以上同种MDRO，存在院内传播风险，请立即启动应急处置"}',
+        cooldownMinutes: 360,
+        priority: 15,
+        isSystem: 1,
+        enabled: 1,
+        triggerCount: 1,
+        lastTriggeredAt: new Date('2024-11-28'),
+        createdBy: 'system',
+      },
+    ];
+    await db.warningRule.createMany({ data: mdroRules });
+
+    // ========== MicroLabResult Sample Data ==========
+    const microLabData = [
+      { patientId: 'ML20240001', patientName: '赵明一', dept: 'ICU', bedNo: 'ICU-01', specimenType: '痰液', specimenNo: 'SP20240001', reportItemName: '鲍曼不动杆菌[CRAB]', resultValue: '≥10^5CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 1, mdroType: 'CRAB', organismName: '耐碳青霉烯类鲍曼不动杆菌', reportTime: new Date(2024, 6, 15, 10, 30), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 1, status: '已审核' },
+      { patientId: 'ML20240002', patientName: '钱华二', dept: 'ICU', bedNo: 'ICU-03', specimenType: '血液', specimenNo: 'SP20240002', reportItemName: '肺炎克雷伯菌[CRKP]', resultValue: '阳性', referenceRange: '阴性', isAbnormal: 1, isMDRO: 1, mdroType: 'CRKP', organismName: '耐碳青霉烯类肺炎克雷伯菌', reportTime: new Date(2024, 6, 16, 14, 20), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 1, status: '已审核' },
+      { patientId: 'ML20240003', patientName: '孙强三', dept: '外科', bedNo: 'WK-05', specimenType: '分泌物', specimenNo: 'SP20240003', reportItemName: '金黄色葡萄球菌[MRSA]', resultValue: '阳性', referenceRange: '阴性', isAbnormal: 1, isMDRO: 1, mdroType: 'MRSA', organismName: '耐甲氧西林金黄色葡萄球菌', reportTime: new Date(2024, 6, 17, 9, 15), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240004', patientName: '李丽四', dept: '内科', bedNo: 'NK-12', specimenType: '尿液', specimenNo: 'SP20240004', reportItemName: '屎肠球菌[VRE]', resultValue: '≥10^5CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 1, mdroType: 'VRE', organismName: '耐万古霉素屎肠球菌', reportTime: new Date(2024, 6, 18, 11, 45), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240005', patientName: '周伟五', dept: 'ICU', bedNo: 'ICU-07', specimenType: '痰液', specimenNo: 'SP20240005', reportItemName: '铜绿假单胞菌[CRPA]', resultValue: '≥10^5CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 1, mdroType: 'CRPA', organismName: '耐碳青霉烯类铜绿假单胞菌', reportTime: new Date(2024, 6, 19, 16, 0), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240006', patientName: '吴芳六', dept: '儿科', bedNo: 'EK-03', specimenType: '血清', specimenNo: 'SP20240006', reportItemName: '肺炎克雷伯菌', resultValue: '2.5×10^4CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 0, organismName: '肺炎克雷伯菌', reportTime: new Date(2024, 6, 20, 8, 30), operator: zlUser.name, reviewer: null, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240007', patientName: '郑军七', dept: '外科', bedNo: 'WK-08', specimenType: '痰液', specimenNo: 'SP20240007', reportItemName: '大肠埃希菌', resultValue: '≥10^5CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 0, organismName: '大肠埃希菌', reportTime: new Date(2024, 6, 21, 13, 15), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240008', patientName: '王秀八', dept: '妇产科', bedNo: 'FK-02', specimenType: '尿液', specimenNo: 'SP20240008', reportItemName: '白色念珠菌', resultValue: '阳性', referenceRange: '阴性', isAbnormal: 1, isMDRO: 0, organismName: '白色念珠菌', reportTime: new Date(2024, 6, 22, 10, 0), operator: zlUser.name, reviewer: null, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240009', patientName: '冯杰九', dept: '急诊科', bedNo: 'JK-01', specimenType: '肺泡灌洗液', specimenNo: 'SP20240009', reportItemName: '鲍曼不动杆菌[CRAB]', resultValue: '阳性', referenceRange: '阴性', isAbnormal: 1, isMDRO: 1, mdroType: 'CRAB', organismName: '耐碳青霉烯类鲍曼不动杆菌', reportTime: new Date(2024, 6, 23, 15, 45), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 1, status: '已审核' },
+      { patientId: 'ML20240010', patientName: '陈敏十', dept: '血液科', bedNo: 'XY-04', specimenType: '血液', specimenNo: 'SP20240010', reportItemName: '表皮葡萄球菌', resultValue: '阳性', referenceRange: '阴性', isAbnormal: 0, isMDRO: 0, organismName: '表皮葡萄球菌', reportTime: new Date(2024, 6, 24, 9, 30), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 0, status: '已审核' },
+      { patientId: 'ML20240011', patientName: '黄明一', dept: 'ICU', bedNo: 'ICU-09', specimenType: '痰液', specimenNo: 'SP20240011', reportItemName: '肺炎克雷伯菌[CRKP]', resultValue: '≥10^5CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 1, mdroType: 'CRKP', organismName: '耐碳青霉烯类肺炎克雷伯菌', reportTime: new Date(2024, 6, 25, 11, 0), operator: zlUser.name, reviewer: gkUser.name, warningTriggered: 1, status: '已审核' },
+      { patientId: 'ML20240012', patientName: '杨华二', dept: '肿瘤科', bedNo: 'ZL-06', specimenType: '痰液', specimenNo: 'SP20240012', reportItemName: '铜绿假单胞菌', resultValue: '5×10^3CFU/ml', referenceRange: '<10^3CFU/ml', isAbnormal: 1, isMDRO: 0, organismName: '铜绿假单胞菌', reportTime: new Date(2024, 6, 26, 14, 30), operator: zlUser.name, reviewer: null, warningTriggered: 0, status: '已审核' },
+    ];
+    await db.microLabResult.createMany({ data: microLabData });
 
     return NextResponse.json({
       success: true,

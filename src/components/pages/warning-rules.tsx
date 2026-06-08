@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { DataTable, Pagination } from '@/components/shared/data-table';
+import { Pagination } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
 import {
   AlertTriangle, Search, Plus, Edit, Trash2, Settings2, Zap, Clock, Shield,
   TrendingUp, Activity, Eye, ToggleLeft, ToggleRight, Copy, Info, ChevronDown,
+  Play, Bug, TestTube, Users, MapPin,
 } from 'lucide-react';
 
 // ============ Rule type / category mapping ============
@@ -31,6 +32,7 @@ const CATEGORY_MAP: Record<string, { label: string; color: string }> = {
   '环境监测': { label: '环境监测', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
   '职业安全': { label: '职业安全', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   '症状监测': { label: '症状监测', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  '多重耐药菌': { label: '多重耐药菌', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -49,6 +51,106 @@ const ACTION_LABELS: Record<string, { label: string; icon: React.ReactNode }> = 
   'escalate': { label: '预警升级', icon: <TrendingUp size={12} /> },
   'block': { label: '阻断操作', icon: <Shield size={12} /> },
 };
+
+const MDRO_TYPE_OPTIONS = [
+  { value: 'CRAB', label: 'CRAB - 鲍曼不动杆菌' },
+  { value: 'CRKP', label: 'CRKP - 肺炎克雷伯菌' },
+  { value: 'MRSA', label: 'MRSA - 金黄色葡萄球菌' },
+  { value: 'VRE', label: 'VRE - 屎肠球菌' },
+  { value: 'CRPA', label: 'CRPA - 铜绿假单胞菌' },
+];
+
+// ============ Rule Test Result Dialog ============
+function RuleTestResultDialog({ open, onClose, result }: { open: boolean; onClose: () => void; result: any }) {
+  if (!result) return null;
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TestTube size={20} className="text-emerald-500" /> 规则测试结果
+          </DialogTitle>
+          <DialogDescription>{result.ruleName} ({result.ruleCode})</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Test outcome */}
+          <div className={`p-4 rounded-lg border-2 ${result.wouldTrigger ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              {result.wouldTrigger ? (
+                <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400" />
+              ) : (
+                <Shield size={18} className="text-emerald-600 dark:text-emerald-400" />
+              )}
+              <span className={`font-semibold ${result.wouldTrigger ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                {result.wouldTrigger ? '规则将触发' : '规则未触发'}
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{result.message}</p>
+          </div>
+
+          {/* Test details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">监测字段</div>
+              <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{result.conditionField}</code>
+            </div>
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">条件</div>
+              <span className="text-sm">{OPERATOR_LABELS[result.conditionOperator] || result.conditionOperator} {result.conditionValue}</span>
+            </div>
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">匹配记录数</div>
+              <span className="text-lg font-bold text-slate-800 dark:text-slate-200">{result.matchCount}</span>
+            </div>
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">触发预警级别</div>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${LEVEL_COLORS[result.warningLevel] || ''}`}>{result.warningLevel}</span>
+            </div>
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">时间窗口</div>
+              <span className="text-sm">{result.timeWindow}小时</span>
+            </div>
+            <div className="p-2.5 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-1">触发动作</div>
+              <span className="flex items-center gap-1 text-sm">{ACTION_LABELS[result.actionType]?.icon}{ACTION_LABELS[result.actionType]?.label}</span>
+            </div>
+          </div>
+
+          {/* Affected patients */}
+          {result.affectedPatients && result.affectedPatients.length > 0 && (
+            <div className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-2 flex items-center gap-1"><Users size={12} /> 受影响患者</div>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {result.affectedPatients.map((p: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs p-1.5 bg-slate-50 dark:bg-slate-800 rounded">
+                    <span className="text-slate-700 dark:text-slate-300">{p.patientName || p.patientId}</span>
+                    {p.mdroType && <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 text-[9px]">{p.mdroType}</Badge>}
+                    {p.dept && <span className="text-slate-400">{p.dept}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Affected departments */}
+          {result.affectedDepts && result.affectedDepts.length > 0 && (
+            <div className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg">
+              <div className="text-[10px] text-slate-400 mb-2 flex items-center gap-1"><MapPin size={12} /> 涉及科室</div>
+              <div className="flex flex-wrap gap-1.5">
+                {result.affectedDepts.map((d: string, i: number) => (
+                  <Badge key={i} variant="outline" className="text-[10px]">{d}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>关闭</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ============ Rule Detail Dialog ============
 function RuleDetailDialog({ open, onClose, rule }: { open: boolean; onClose: () => void; rule: any }) {
@@ -146,6 +248,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
     conditionValue: '', timeWindow: 24, warningLevel: '中', warningType: '病例预警',
     targetDepts: '', targetSites: '', targetDiseases: '',
     actionType: 'notify', cooldownMinutes: 60, priority: 0,
+    mdroTypes: '',  // Comma-separated MDRO types for monitoring
   });
   const [saving, setSaving] = useState(false);
 
@@ -161,7 +264,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
         warningType: item.warningType || '病例预警', targetDepts: item.targetDepts || '',
         targetSites: item.targetSites || '', targetDiseases: item.targetDiseases || '',
         actionType: item.actionType || 'notify', cooldownMinutes: item.cooldownMinutes || 60,
-        priority: item.priority || 0,
+        priority: item.priority || 0, mdroTypes: item.mdroTypes || '',
       });
     } else {
       // Auto-generate code
@@ -177,6 +280,8 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
   };
 
   const updateField = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const isMDROCategory = form.category === '多重耐药菌' || form.category === '感染监测';
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -206,7 +311,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则分类</label>
                 <select value={form.category} onChange={e => updateField('category', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测'].map(c => <option key={c} value={c}>{c}</option>)}
+                  {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测', '多重耐药菌'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -225,6 +330,36 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
             </div>
           </div>
 
+          {/* MDRO monitoring config - show when category is MDRO or 感染监测 */}
+          {form.category === '多重耐药菌' && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Bug size={14} className="text-rose-500" /> 监测菌种配置
+              </h4>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">监测菌种（多选，用逗号分隔）</label>
+                <div className="flex flex-wrap gap-2 p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700">
+                  {MDRO_TYPE_OPTIONS.map(opt => {
+                    const isSelected = form.mdroTypes.split(',').filter(Boolean).includes(opt.value);
+                    return (
+                      <label key={opt.value} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
+                        isSelected ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-300 dark:border-rose-700' : 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-600'
+                      }`}>
+                        <input type="checkbox" className="hidden" checked={isSelected}
+                          onChange={() => {
+                            const types = form.mdroTypes.split(',').filter(Boolean);
+                            const newTypes = isSelected ? types.filter(t => t !== opt.value) : [...types, opt.value];
+                            updateField('mdroTypes', newTypes.join(','));
+                          }} />
+                        {opt.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Trigger Condition */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -235,6 +370,10 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">监测字段</label>
                 <select value={form.conditionField} onChange={e => updateField('conditionField', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  <optgroup label="多重耐药菌">
+                    <option value="mdroDetection">MDRO检出</option>
+                    <option value="mdroCount">MDRO检出数量</option>
+                  </optgroup>
                   <optgroup label="感染监测">
                     <option value="infectionRate">感染发病率(%)</option>
                     <option value="caseCount">新增病例数</option>
@@ -305,7 +444,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警类型</label>
                 <select value={form.warningType} onChange={e => updateField('warningType', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {['病例预警', '聚集预警', '暴发预警', '环境预警', '职业暴露预警'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['病例预警', '聚集预警', '暴发预警', '环境预警', '职业暴露预警', 'MDRO预警'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -371,8 +510,13 @@ export default function WarningRulesPage() {
   const [filter, setFilter] = useState({ category: '', ruleType: '', enabled: '', keyword: '' });
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showTestResult, setShowTestResult] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [detailItem, setDetailItem] = useState<any>(null);
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const currentUser = useAppStore(s => s.currentUser);
 
   const fetchData = useCallback(async () => {
@@ -421,6 +565,50 @@ export default function WarningRulesPage() {
   };
 
   const handleViewDetail = (row: any) => { setDetailItem(row); setShowDetail(true); };
+
+  const handleTestRule = async (row: any) => {
+    setTesting(row.id);
+    try {
+      const res = await fetch('/api/warning-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', ruleId: row.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setTestResult(d.data);
+        setShowTestResult(true);
+      } else {
+        setToast({ message: d.message || '测试失败', type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: '测试请求失败: ' + e.message, type: 'error' });
+    }
+    setTesting(null);
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const handleEvaluate = async () => {
+    setEvaluating(true);
+    try {
+      const res = await fetch('/api/warning-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'evaluate' }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setToast({ message: d.data.message, type: 'success' });
+        fetchData();
+      } else {
+        setToast({ message: d.message || '执行失败', type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: '执行失败: ' + e.message, type: 'error' });
+    }
+    setEvaluating(false);
+    setTimeout(() => setToast(null), 5000);
+  };
 
   const columns = [
     {
@@ -475,13 +663,27 @@ export default function WarningRulesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+          toast.type === 'success' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
           <Settings2 size={22} className="text-emerald-500" /> 智能预警规则
         </h2>
-        <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="bg-emerald-600 hover:bg-emerald-500 gap-1.5">
-          <Plus size={16} /> 新建规则
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleEvaluate} disabled={evaluating} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-900/20">
+            <Play size={14} /> {evaluating ? '执行中...' : '执行引擎'}
+          </Button>
+          <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="bg-emerald-600 hover:bg-emerald-500 gap-1.5">
+            <Plus size={16} /> 新建规则
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">配置智能预警触发规则，实现自动监测与实时预警</p>
 
@@ -510,7 +712,7 @@ export default function WarningRulesPage() {
         <select value={filter.category} onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部分类</option>
-          {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测'].map(c => <option key={c} value={c}>{c}</option>)}
+          {['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测', '多重耐药菌'].map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filter.ruleType} onChange={e => setFilter(f => ({ ...f, ruleType: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
@@ -573,6 +775,9 @@ export default function WarningRulesPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleViewDetail(row)} className="h-7 text-xs gap-1 text-slate-600"><Eye size={12} />详情</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleTestRule(row)} disabled={testing === row.id} className="h-7 text-xs gap-1 text-sky-600">
+                          <TestTube size={12} />{testing === row.id ? '...' : '测试'}
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleToggle(row)} className={`h-7 text-xs gap-1 ${row.enabled === 1 ? 'text-amber-600' : 'text-emerald-600'}`}>
                           {row.enabled === 1 ? <><ToggleLeft size={12} />禁用</> : <><ToggleRight size={12} />启用</>}
                         </Button>
@@ -595,6 +800,7 @@ export default function WarningRulesPage() {
       {/* Dialogs */}
       {showForm && <WarningRuleForm item={editItem} onSave={handleSave} onClose={() => { setShowForm(false); setEditItem(null); }} />}
       {showDetail && <RuleDetailDialog open={showDetail} rule={detailItem} onClose={() => { setShowDetail(false); setDetailItem(null); }} />}
+      {showTestResult && <RuleTestResultDialog open={showTestResult} result={testResult} onClose={() => { setShowTestResult(false); setTestResult(null); }} />}
     </div>
   );
 }
