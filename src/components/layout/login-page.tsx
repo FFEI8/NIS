@@ -136,8 +136,8 @@ export default function LoginPage() {
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
                 { label: '管理员', user: 'admin', pass: 'admin123' },
-                { label: '感控专员', user: 'gkzj', pass: 'gkzj123' },
-                { label: '临床医师', user: 'doctor', pass: 'doctor123' },
+                { label: '感控专员', user: 'gkzj', pass: '123456' },
+                { label: '临床医师', user: 'doctor', pass: '123456' },
               ].map(d => (
                 <button key={d.user} type="button" onClick={() => { setUsername(d.user); setPassword(d.pass); }}
                   className="text-center p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">

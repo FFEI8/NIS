@@ -6,28 +6,53 @@ export async function GET() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const totalInfections = await db.infectionCase.count();
-    const monthInfections = await db.infectionCase.count({ where: { infectionDate: { gte: monthStart } } });
-    const pendingWarnings = await db.warningRecord.count({ where: { status: '待处理' } });
-    const mdroCount = await db.infectionCase.count({ where: { pathogen: { contains: '耐药' } } });
-    const exposureCount = await db.occupationalExposure.count();
+    // ============ Simple counts (use count() instead of findMany) ============
+    const [
+      totalInfections,
+      monthInfections,
+      pendingWarnings,
+      mdroCount,
+      exposureCount,
+    ] = await Promise.all([
+      db.infectionCase.count(),
+      db.infectionCase.count({ where: { infectionDate: { gte: monthStart } } }),
+      db.warningRecord.count({ where: { status: '待处理' } }),
+      db.infectionCase.count({ where: { pathogen: { contains: '耐药' } } }),
+      db.occupationalExposure.count(),
+    ]);
 
-    // Antibiotic usage rate
-    const antibioticData = await db.antibioticUsage.findMany();
-    const antibioticUsageRate = antibioticData.length > 0
-      ? antibioticData.reduce((sum, d) => sum + d.usageRate, 0) / antibioticData.length
-      : 0;
+    // ============ Aggregation queries instead of fetch-all ============
 
-    // Hand hygiene rate
-    const handHygieneData = await db.handHygiene.findMany();
-    const handHygieneRate = handHygieneData.length > 0
-      ? handHygieneData.reduce((sum, d) => sum + d.complianceRate, 0) / handHygieneData.length
-      : 0;
+    // Antibiotic usage rate - use aggregate
+    const antibioticAgg = await db.antibioticUsage.aggregate({
+      _avg: { usageRate: true },
+      _count: true,
+    });
+    const antibioticUsageRate = antibioticAgg._count > 0 ? (antibioticAgg._avg.usageRate ?? 0) : 0;
 
-    // Environmental hygiene rate
-    const envData = await db.environmentalMonitor.findMany();
-    const envQualified = envData.filter(d => d.result === '合格').length;
-    const envHygieneRate = envData.length > 0 ? (envQualified / envData.length) * 100 : 0;
+    // Hand hygiene rate - use aggregate
+    const handHygieneAgg = await db.handHygiene.aggregate({
+      _avg: { complianceRate: true },
+      _count: true,
+    });
+    const handHygieneRate = handHygieneAgg._count > 0 ? (handHygieneAgg._avg.complianceRate ?? 0) : 0;
+
+    // Environmental hygiene rate - use count for qualified vs total
+    const [envTotal, envQualified] = await Promise.all([
+      db.environmentalMonitor.count(),
+      db.environmentalMonitor.count({ where: { result: '合格' } }),
+    ]);
+    const envHygieneRate = envTotal > 0 ? (envQualified / envTotal) * 100 : 0;
+
+    // ============ Infection trend & distribution (need select for minimal data) ============
+    // Only fetch the fields needed for trend/site/dept calculations
+    const casesForAnalytics = await db.infectionCase.findMany({
+      select: {
+        infectionDate: true,
+        infectionSite: true,
+        dept: true,
+      },
+    });
 
     // Infection trend - last 12 months
     const months: string[] = [];
@@ -35,10 +60,9 @@ export async function GET() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
-    
-    const allCases = await db.infectionCase.findMany();
+
     const infectionTrend = months.map(m => {
-      const count = allCases.filter(c => {
+      const count = casesForAnalytics.filter(c => {
         const d = new Date(c.infectionDate);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return key === m;
@@ -48,14 +72,14 @@ export async function GET() {
 
     // Site distribution
     const siteMap = new Map<string, number>();
-    allCases.forEach(c => {
+    casesForAnalytics.forEach(c => {
       siteMap.set(c.infectionSite, (siteMap.get(c.infectionSite) || 0) + 1);
     });
     const siteDistribution = Array.from(siteMap.entries()).map(([site, count]) => ({ site, count }));
 
     // Dept infection rate
     const deptMap = new Map<string, { total: number; infected: number }>();
-    allCases.forEach(c => {
+    casesForAnalytics.forEach(c => {
       const d = deptMap.get(c.dept) || { total: 100, infected: 0 };
       d.infected++;
       deptMap.set(c.dept, d);

@@ -2,21 +2,30 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { buildMenuTree } from '@/lib/api-utils';
 
+// Cache for menu tree to avoid rebuilding on every login
+let menuTreeCache: { data: any[]; menuIdsKey: string; timestamp: number } | null = null;
+const MENU_TREE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
-    
+
+    // Step 1: Find user with minimal data + role IDs only
     const user = await db.user.findUnique({
       where: { username },
-      include: {
+      select: {
+        id: true,
+        username: true,
+        password: true,
+        name: true,
+        avatar: true,
+        phone: true,
+        email: true,
+        dept: true,
+        status: true,
         roles: {
-          include: {
-            role: {
-              include: {
-                permissions: { include: { permission: true } },
-                menus: { include: { menu: true } },
-              },
-            },
+          select: {
+            roleId: true,
           },
         },
       },
@@ -30,20 +39,62 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: '该用户已被禁用' }, { status: 403 });
     }
 
-    const permissions = [...new Set(
-      user.roles.flatMap(ur => ur.role.permissions.map(rp => rp.permission.code))
-    )];
+    const roleIds = user.roles.map(ur => ur.roleId);
 
-    const menuIds = [...new Set(
-      user.roles.flatMap(ur => ur.role.menus.map(rm => rm.menuId))
-    )];
-
-    const menus = await db.menu.findMany({
-      where: { id: { in: menuIds }, status: 1 },
-      orderBy: { sort: 'asc' },
+    // Step 2: Fetch role basic info (parallel with steps 3-4)
+    const rolesInfo = db.role.findMany({
+      where: { id: { in: roleIds } },
+      select: { id: true, code: true, name: true },
     });
 
-    const menuTree = buildMenuTree(menus);
+    // Step 3: Fetch permission codes for these roles
+    const permissionCodes = db.rolePermission.findMany({
+      where: { roleId: { in: roleIds } },
+      select: { permission: { select: { code: true } } },
+    });
+
+    // Step 4: Fetch menu IDs for these roles
+    const menuIdsResult = db.roleMenu.findMany({
+      where: { roleId: { in: roleIds } },
+      select: { menuId: true },
+    });
+
+    // Execute all 3 queries in parallel
+    const [roles, permResult, menuIdResult] = await Promise.all([rolesInfo, permissionCodes, menuIdsResult]);
+
+    // Deduplicate permission codes
+    const permissions = [...new Set(permResult.map(rp => rp.permission.code))];
+
+    // Deduplicate menu IDs
+    const menuIds = [...new Set(menuIdResult.map(rm => rm.menuId))];
+
+    // Step 5: Build menu tree (with caching)
+    const menuIdsKey = menuIds.sort().join(',');
+    let menuTree: any[];
+
+    if (menuTreeCache && menuTreeCache.menuIdsKey === menuIdsKey && Date.now() - menuTreeCache.timestamp < MENU_TREE_CACHE_TTL) {
+      menuTree = menuTreeCache.data;
+    } else {
+      const menus = await db.menu.findMany({
+        where: { id: { in: menuIds }, status: 1 },
+        select: {
+          id: true,
+          parentId: true,
+          name: true,
+          code: true,
+          path: true,
+          icon: true,
+          component: true,
+          sort: true,
+          type: true,
+          visible: true,
+          status: true,
+        },
+        orderBy: { sort: 'asc' },
+      });
+      menuTree = buildMenuTree(menus);
+      menuTreeCache = { data: menuTree, menuIdsKey, timestamp: Date.now() };
+    }
 
     return NextResponse.json({
       success: true,
@@ -57,10 +108,10 @@ export async function POST(request: Request) {
           email: user.email,
           dept: user.dept,
           status: user.status,
-          roles: user.roles.map(ur => ({
-            id: ur.role.id,
-            code: ur.role.code,
-            name: ur.role.name,
+          roles: roles.map(r => ({
+            id: r.id,
+            code: r.code,
+            name: r.name,
           })),
         },
         permissions,

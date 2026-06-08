@@ -502,3 +502,43 @@ Stage Summary:
    - API添加分页缓存
    - 前端组件懒加载
    - 预警引擎批处理优化
+
+---
+Task ID: 1
+Agent: Optimizer
+Task: Optimize APIs and enhance MDRO warning rules
+
+Work Log:
+- **Optimized login API** (/src/app/api/auth/login/route.ts):
+  - Replaced deeply nested `include` query (user → roles → role → permissions → permission, menus → menu) with 4 separate simpler queries
+  - Step 1: Find user with `select` (only needed fields) + role IDs only
+  - Step 2-4: Fetch role info, permission codes, and menu IDs in parallel using `Promise.all`
+  - Step 5: Build menu tree with 5-minute cache (avoids rebuilding identical trees on repeated logins)
+  - Used `select` on all queries to only fetch needed fields
+  - Memory reduction: from one giant nested object to 4 small flat result sets
+- **Optimized dashboard API** (/src/app/api/dashboard/route.ts):
+  - Replaced `findMany()` without limits for antibiotic usage rate with `aggregate({ _avg: { usageRate: true } })`
+  - Replaced `findMany()` for hand hygiene rate with `aggregate({ _avg: { complianceRate: true } })`
+  - Replaced `findMany()` + `.filter()` for environmental hygiene rate with two `count()` calls (total + qualified)
+  - For the analytics query (infection trend, site distribution, dept rate), used `select` to only fetch 3 needed fields (infectionDate, infectionSite, dept) instead of all ~15 fields
+  - Parallelized 5 independent count queries with `Promise.all`
+- **Enhanced warning-rules page** (/src/components/pages/warning-rules.tsx):
+  - Added `QuickCreateMDRODialog` component with dedicated templates for all 5 MDRO bacteria types
+  - Each template includes: bacteria name, description, recommended conditionValue (bacteria Chinese name for contains matching), timeWindow, warningLevel, targetDepts, cooldownMinutes, priority, risk note
+  - CRAB (鲍曼不动杆菌): 24h window, 高 level, ICU/呼吸科/神经外科/烧伤科, 120min cooldown, priority 10
+  - CRKP (肺炎克雷伯菌): 24h window, 高 level, ICU/呼吸科/肝胆外科/血液科, 120min cooldown, priority 10
+  - MRSA (金黄色葡萄球菌): 48h window, 中 level, ICU/外科/骨科/皮肤科, 180min cooldown, priority 7
+  - VRE (屎肠球菌): 24h window, 高 level, ICU/血液科/肾内科/肿瘤科, 120min cooldown, priority 10
+  - CRPA (铜绿假单胞菌): 48h window, 中 level, ICU/呼吸科/烧伤科/肿瘤科, 180min cooldown, priority 7
+  - Each template card shows risk notes, recommended settings, and has individual create button
+  - "一键创建全部5条规则" batch creation button
+  - Added new lucide-react imports: Sparkles, FlaskConical
+  - Added "快速创建MDRO规则" button in page header (rose-colored outline)
+  - Removed unused `isMDROCategory` variable from WarningRuleForm
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- Login API: Deep nested include → 4 flat parallel queries with select + menu tree caching
+- Dashboard API: findMany without limits → count/aggregate with parallel execution
+- Warning rules page: Quick Create MDRO Rule feature with 5 bacteria-specific templates
+- All lint checks pass (0 errors, 0 warnings)

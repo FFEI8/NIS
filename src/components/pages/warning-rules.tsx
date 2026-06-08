@@ -14,7 +14,7 @@ import {
 import {
   AlertTriangle, Search, Plus, Edit, Trash2, Settings2, Zap, Clock, Shield,
   TrendingUp, Activity, Eye, ToggleLeft, ToggleRight, Copy, Info, ChevronDown,
-  Play, Bug, TestTube, Users, MapPin,
+  Play, Bug, TestTube, Users, MapPin, Sparkles, FlaskConical,
 } from 'lucide-react';
 
 // ============ Rule type / category mapping ============
@@ -59,6 +59,99 @@ const MDRO_TYPE_OPTIONS = [
   { value: 'VRE', label: 'VRE - 屎肠球菌' },
   { value: 'CRPA', label: 'CRPA - 铜绿假单胞菌' },
 ];
+
+// ============ MDRO Quick Create Templates ============
+const MDRO_TEMPLATES: Record<string, {
+  name: string;
+  bacteriaName: string;
+  mdroType: string;
+  description: string;
+  conditionValue: string;
+  timeWindow: number;
+  warningLevel: string;
+  targetDepts: string;
+  cooldownMinutes: number;
+  priority: number;
+  color: string;
+  icon: string;
+  riskNote: string;
+}> = {
+  'CRAB': {
+    name: '鲍曼不动杆菌(CRAB)检出预警',
+    bacteriaName: '鲍曼不动杆菌',
+    mdroType: 'CRAB',
+    description: '监测微生物检验中鲍曼不动杆菌(CRAB)的检出情况，一旦检出即触发高级别预警，要求立即采取接触隔离措施。CRAB对碳青霉烯类耐药，传播力强，需重点关注ICU等重症科室。',
+    conditionValue: '鲍曼不动杆菌',
+    timeWindow: 24,
+    warningLevel: '高',
+    targetDepts: 'ICU,呼吸科,神经外科,烧伤科',
+    cooldownMinutes: 120,
+    priority: 10,
+    color: 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800',
+    icon: '🔴',
+    riskNote: 'CRAB对碳青霉烯类抗生素耐药，极易在ICU等科室引起医院感染暴发',
+  },
+  'CRKP': {
+    name: '肺炎克雷伯菌(CRKP)检出预警',
+    bacteriaName: '肺炎克雷伯菌',
+    mdroType: 'CRKP',
+    description: '监测微生物检验中肺炎克雷伯菌(CRKP)的检出情况，CRKP对碳青霉烯类耐药，一旦检出即触发高级别预警，需立即隔离并追踪接触者。',
+    conditionValue: '肺炎克雷伯菌',
+    timeWindow: 24,
+    warningLevel: '高',
+    targetDepts: 'ICU,呼吸科,肝胆外科,血液科',
+    cooldownMinutes: 120,
+    priority: 10,
+    color: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800',
+    icon: '🟠',
+    riskNote: 'CRKP碳青霉烯耐药性强，血流感染死亡率高达40-50%',
+  },
+  'MRSA': {
+    name: '金黄色葡萄球菌(MRSA)检出预警',
+    bacteriaName: '金黄色葡萄球菌',
+    mdroType: 'MRSA',
+    description: '监测微生物检验中耐甲氧西林金黄色葡萄球菌(MRSA)的检出情况，MRSA对β-内酰胺类抗生素耐药，检出后需执行接触隔离措施。',
+    conditionValue: '金黄色葡萄球菌',
+    timeWindow: 48,
+    warningLevel: '中',
+    targetDepts: 'ICU,外科,骨科,皮肤科',
+    cooldownMinutes: 180,
+    priority: 7,
+    color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800',
+    icon: '🟣',
+    riskNote: 'MRSA是最常见的医院感染耐药菌之一，外科伤口感染风险高',
+  },
+  'VRE': {
+    name: '屎肠球菌(VRE)检出预警',
+    bacteriaName: '屎肠球菌',
+    mdroType: 'VRE',
+    description: '监测微生物检验中耐万古霉素屎肠球菌(VRE)的检出情况，VRE对万古霉素耐药，治疗选择极为有限，需立即启动接触隔离。',
+    conditionValue: '屎肠球菌',
+    timeWindow: 24,
+    warningLevel: '高',
+    targetDepts: 'ICU,血液科,肾内科,肿瘤科',
+    cooldownMinutes: 120,
+    priority: 10,
+    color: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+    icon: '🔴',
+    riskNote: 'VRE对万古霉素耐药，治疗选择极为有限，常在免疫功能低下患者中引起严重感染',
+  },
+  'CRPA': {
+    name: '铜绿假单胞菌(CRPA)检出预警',
+    bacteriaName: '铜绿假单胞菌',
+    mdroType: 'CRPA',
+    description: '监测微生物检验中耐碳青霉烯铜绿假单胞菌(CRPA)的检出情况，CRPA可引起多种医院感染，需关注呼吸机相关性肺炎和血流感染。',
+    conditionValue: '铜绿假单胞菌',
+    timeWindow: 48,
+    warningLevel: '中',
+    targetDepts: 'ICU,呼吸科,烧伤科,肿瘤科',
+    cooldownMinutes: 180,
+    priority: 7,
+    color: 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-800',
+    icon: '🟢',
+    riskNote: 'CRPA常引起呼吸机相关性肺炎和血流感染，对多种抗生素天然耐药',
+  },
+};
 
 // ============ Rule Test Result Dialog ============
 function RuleTestResultDialog({ open, onClose, result }: { open: boolean; onClose: () => void; result: any }) {
@@ -281,8 +374,6 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
 
   const updateField = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const isMDROCategory = form.category === '多重耐药菌' || form.category === '感染监测';
-
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -330,7 +421,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
             </div>
           </div>
 
-          {/* MDRO monitoring config - show when category is MDRO or 感染监测 */}
+          {/* MDRO monitoring config - show when category is MDRO */}
           {form.category === '多重耐药菌' && (
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -501,6 +592,137 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
   );
 }
 
+// ============ Quick Create MDRO Rule Dialog ============
+function QuickCreateMDRODialog({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (data: any) => void }) {
+  const [creating, setCreating] = useState<string | null>(null);
+  const [created, setCreated] = useState<Set<string>>(new Set());
+
+  const handleQuickCreate = async (type: string) => {
+    const template = MDRO_TEMPLATES[type];
+    if (!template) return;
+
+    setCreating(type);
+    const formData = {
+      name: template.name,
+      code: `MDRO_${type}_${Date.now().toString(36).toUpperCase()}`,
+      category: '多重耐药菌',
+      ruleType: '阈值预警',
+      description: template.description,
+      conditionType: '包含',
+      conditionField: 'mdroDetection',
+      conditionOperator: 'contains',
+      conditionValue: template.conditionValue,
+      timeWindow: template.timeWindow,
+      warningLevel: template.warningLevel,
+      warningType: 'MDRO预警',
+      targetDepts: template.targetDepts,
+      targetSites: '',
+      targetDiseases: '',
+      actionType: 'notify',
+      cooldownMinutes: template.cooldownMinutes,
+      priority: template.priority,
+      mdroTypes: template.mdroType,
+    };
+
+    await onSave(formData);
+    setCreated(prev => new Set(prev).add(type));
+    setCreating(null);
+  };
+
+  const handleCreateAll = async () => {
+    for (const type of Object.keys(MDRO_TEMPLATES)) {
+      if (!created.has(type)) {
+        await handleQuickCreate(type);
+      }
+    }
+  };
+
+  const allCreated = created.size === Object.keys(MDRO_TEMPLATES).length;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles size={20} className="text-amber-500" /> 快速创建MDRO规则
+          </DialogTitle>
+          <DialogDescription>一键创建5种多重耐药菌的预警规则，每种菌配有推荐默认参数</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {/* Summary header */}
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <FlaskConical size={14} className="text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-300">5种重点MDRO监测菌种</span>
+            </div>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              根据国家卫健委《多重耐药菌医院感染预防与控制指南》，以下5种多重耐药菌为医院感染重点监测对象。点击各菌种卡片可快速创建对应预警规则。
+            </p>
+          </div>
+
+          {/* MDRO template cards */}
+          {Object.entries(MDRO_TEMPLATES).map(([type, template]) => (
+            <div key={type} className={`p-4 rounded-lg border-2 transition-all ${template.color} ${created.has(type) ? 'opacity-60' : 'hover:shadow-md'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm">{template.icon}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{template.name}</span>
+                    <Badge className={`text-[9px] ${LEVEL_COLORS[template.warningLevel]}`}>{template.warningLevel}级别</Badge>
+                    {created.has(type) && (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[9px]">已创建</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">{template.description}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1"><Clock size={10} /> 时间窗口: {template.timeWindow}h</span>
+                    <span className="flex items-center gap-1"><MapPin size={10} /> 重点科室: {template.targetDepts}</span>
+                    <span className="flex items-center gap-1"><Zap size={10} /> 冷却: {template.cooldownMinutes}min</span>
+                    <span className="flex items-center gap-1"><Shield size={10} /> 优先级: {template.priority}</span>
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                    <AlertTriangle size={10} /> {template.riskNote}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleQuickCreate(type)}
+                  disabled={creating === type || created.has(type)}
+                  className={`shrink-0 gap-1 ${created.has(type)
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    : 'bg-rose-600 hover:bg-rose-500 text-white'
+                  }`}
+                >
+                  {creating === type ? (
+                    <><span className="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full" /> 创建中</>
+                  ) : created.has(type) ? (
+                    <><Shield size={12} /> 已创建</>
+                  ) : (
+                    <><Plus size={12} /> 创建</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter className="flex gap-2 sm:justify-between">
+          <Button variant="outline" onClick={onClose} className="gap-1">
+            关闭
+          </Button>
+          <Button
+            onClick={handleCreateAll}
+            disabled={allCreated}
+            className="gap-1.5 bg-amber-600 hover:bg-amber-500 text-white"
+          >
+            <Sparkles size={14} />
+            {allCreated ? '全部已创建' : '一键创建全部5条规则'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ============ Main Page ============
 export default function WarningRulesPage() {
   const [data, setData] = useState<any[]>([]);
@@ -511,6 +733,7 @@ export default function WarningRulesPage() {
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [showTestResult, setShowTestResult] = useState(false);
+  const [showQuickMDRO, setShowQuickMDRO] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [detailItem, setDetailItem] = useState<any>(null);
   const [testResult, setTestResult] = useState<any>(null);
@@ -680,6 +903,9 @@ export default function WarningRulesPage() {
           <Button variant="outline" size="sm" onClick={handleEvaluate} disabled={evaluating} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-900/20">
             <Play size={14} /> {evaluating ? '执行中...' : '执行引擎'}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowQuickMDRO(true)} className="gap-1.5 text-rose-600 border-rose-300 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-700 dark:hover:bg-rose-900/20">
+            <Sparkles size={14} /> 快速创建MDRO规则
+          </Button>
           <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="bg-emerald-600 hover:bg-emerald-500 gap-1.5">
             <Plus size={16} /> 新建规则
           </Button>
@@ -801,6 +1027,7 @@ export default function WarningRulesPage() {
       {showForm && <WarningRuleForm item={editItem} onSave={handleSave} onClose={() => { setShowForm(false); setEditItem(null); }} />}
       {showDetail && <RuleDetailDialog open={showDetail} rule={detailItem} onClose={() => { setShowDetail(false); setDetailItem(null); }} />}
       {showTestResult && <RuleTestResultDialog open={showTestResult} result={testResult} onClose={() => { setShowTestResult(false); setTestResult(null); }} />}
+      {showQuickMDRO && <QuickCreateMDRODialog open={showQuickMDRO} onClose={() => setShowQuickMDRO(false)} onSave={handleSave} />}
     </div>
   );
 }

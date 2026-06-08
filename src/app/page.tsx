@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ComponentType } from 'react';
 import { useAppStore } from '@/store/app-store';
-import { Hospital, RefreshCw } from 'lucide-react';
+import { Hospital, RefreshCw, Loader2 } from 'lucide-react';
 import LoginPage from '@/components/layout/login-page';
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
@@ -10,28 +10,50 @@ import Header from '@/components/layout/header';
 // Dynamic imports for page components to reduce initial compilation payload
 import dynamic from 'next/dynamic';
 
-const DashboardPage = dynamic(() => import('@/components/pages/dashboard'));
-const InfectionCasesPage = dynamic(() => import('@/components/pages/infection-cases'));
-const WarningsPage = dynamic(() => import('@/components/pages/warnings'));
-const TargetMonitoringPage = dynamic(() => import('@/components/pages/target-monitoring'));
-const EnvironmentalMonitorPage = dynamic(() => import('@/components/pages/environmental-monitor'));
-const SterilizationPage = dynamic(() => import('@/components/pages/sterilization'));
-const OccupationalExposurePage = dynamic(() => import('@/components/pages/occupational-exposure'));
-const HandHygienePage = dynamic(() => import('@/components/pages/hand-hygiene'));
-const AntibioticUsagePage = dynamic(() => import('@/components/pages/antibiotic-usage'));
-const InfectionReportsPage = dynamic(() => import('@/components/pages/infection-reports'));
-const StatisticsPage = dynamic(() => import('@/components/pages/statistics'));
-const UserManagementPage = dynamic(() => import('@/components/pages/user-management'));
-const RoleManagementPage = dynamic(() => import('@/components/pages/role-management'));
-const MenuManagementPage = dynamic(() => import('@/components/pages/menu-management'));
-const PermissionManagementPage = dynamic(() => import('@/components/pages/permission-management'));
-const InfectiousDiseaseCasePage = dynamic(() => import('@/components/pages/infectious-disease-case'));
-const ContactTracingPage = dynamic(() => import('@/components/pages/contact-tracing'));
-const SymptomSurveillancePage = dynamic(() => import('@/components/pages/symptom-surveillance'));
-const EpidemicDashboardPage = dynamic(() => import('@/components/pages/epidemic-dashboard'));
-const DiseaseAlertPage = dynamic(() => import('@/components/pages/disease-alert'));
-const WarningRulesPage = dynamic(() => import('@/components/pages/warning-rules'));
-const MicroLabResultsPage = dynamic(() => import('@/components/pages/micro-lab-results'));
+// Loading fallback component
+function PageLoading() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <Loader2 size={32} className="animate-spin text-emerald-500 mx-auto mb-3" />
+        <div className="text-slate-500 text-sm">加载中...</div>
+      </div>
+    </div>
+  );
+}
+
+// Helper to create dynamic import with error recovery
+function dynamicPage<T extends ComponentType<unknown>>(
+  importFn: () => Promise<{ default: T }>,
+) {
+  return dynamic(importFn, {
+    loading: () => <PageLoading />,
+    ssr: false,
+  });
+}
+
+const DashboardPage = dynamicPage(() => import('@/components/pages/dashboard'));
+const InfectionCasesPage = dynamicPage(() => import('@/components/pages/infection-cases'));
+const WarningsPage = dynamicPage(() => import('@/components/pages/warnings'));
+const TargetMonitoringPage = dynamicPage(() => import('@/components/pages/target-monitoring'));
+const EnvironmentalMonitorPage = dynamicPage(() => import('@/components/pages/environmental-monitor'));
+const SterilizationPage = dynamicPage(() => import('@/components/pages/sterilization'));
+const OccupationalExposurePage = dynamicPage(() => import('@/components/pages/occupational-exposure'));
+const HandHygienePage = dynamicPage(() => import('@/components/pages/hand-hygiene'));
+const AntibioticUsagePage = dynamicPage(() => import('@/components/pages/antibiotic-usage'));
+const InfectionReportsPage = dynamicPage(() => import('@/components/pages/infection-reports'));
+const StatisticsPage = dynamicPage(() => import('@/components/pages/statistics'));
+const UserManagementPage = dynamicPage(() => import('@/components/pages/user-management'));
+const RoleManagementPage = dynamicPage(() => import('@/components/pages/role-management'));
+const MenuManagementPage = dynamicPage(() => import('@/components/pages/menu-management'));
+const PermissionManagementPage = dynamicPage(() => import('@/components/pages/permission-management'));
+const InfectiousDiseaseCasePage = dynamicPage(() => import('@/components/pages/infectious-disease-case'));
+const ContactTracingPage = dynamicPage(() => import('@/components/pages/contact-tracing'));
+const SymptomSurveillancePage = dynamicPage(() => import('@/components/pages/symptom-surveillance'));
+const EpidemicDashboardPage = dynamicPage(() => import('@/components/pages/epidemic-dashboard'));
+const DiseaseAlertPage = dynamicPage(() => import('@/components/pages/disease-alert'));
+const WarningRulesPage = dynamicPage(() => import('@/components/pages/warning-rules'));
+const MicroLabResultsPage = dynamicPage(() => import('@/components/pages/micro-lab-results'));
 
 // ============ Content Router ============
 function ContentArea() {
@@ -91,6 +113,18 @@ function MainApp() {
 export default function Home() {
   const currentUser = useAppStore(s => s.currentUser);
   const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    // Handle chunk load errors by reloading the page
+    const handleChunkError = (event: ErrorEvent) => {
+      if (event.message?.includes('ChunkLoadError') || event.message?.includes('Loading chunk')) {
+        console.warn('Chunk load error detected, reloading page...');
+        window.location.reload();
+      }
+    };
+    window.addEventListener('error', handleChunkError);
+    return () => window.removeEventListener('error', handleChunkError);
+  }, []);
 
   useEffect(() => {
     // Only seed once - check localStorage flag first
