@@ -28,6 +28,7 @@ export async function POST() {
     await db.warningRule.deleteMany();
     await db.microLabResult.deleteMany();
     await db.warningRuleLog.deleteMany();
+    await db.temperatureRecord.deleteMany();
     await db.user.deleteMany();
     await db.role.deleteMany();
     await db.permission.deleteMany();

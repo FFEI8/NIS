@@ -85,10 +85,25 @@ export async function POST(request: Request) {
                     });
                   } catch { /* already updated */ }
                 }
+                if (match.sourceId && match.sourceType === 'temperature') {
+                  try {
+                    await db.temperatureRecord.update({
+                      where: { id: match.sourceId },
+                      data: { warningTriggered: 1 },
+                    });
+                  } catch { /* already updated */ }
+                }
               }
             } else if (triggered.sourceType === 'micro_lab' && triggered.sourceId) {
               try {
                 await db.microLabResult.update({
+                  where: { id: triggered.sourceId },
+                  data: { warningTriggered: 1 },
+                });
+              } catch { /* already updated */ }
+            } else if (triggered.sourceType === 'temperature' && triggered.sourceId) {
+              try {
+                await db.temperatureRecord.update({
                   where: { id: triggered.sourceId },
                   data: { warningTriggered: 1 },
                 });
@@ -367,6 +382,42 @@ async function evaluateRule(rule: any): Promise<any | null> {
         return null;
       }
 
+      case 'temperature': {
+        // Query TemperatureRecord where temperature >= threshold within timeWindow
+        const tempThreshold = parseFloat(conditionValue) || 38.0;
+        const tempRecords = await db.temperatureRecord.findMany({
+          where: {
+            temperature: { gte: tempThreshold },
+            measureTime: { gte: windowStart },
+            ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+          },
+          orderBy: { measureTime: 'desc' },
+        });
+        if (compareValue(tempRecords.length, conditionOperator, parseInt(conditionValue) || 1) || tempRecords.length > 0) {
+          const matchedRecords = tempRecords.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName,
+            dept: r.dept,
+            sourceId: r.id,
+            sourceType: 'temperature',
+            temperature: r.temperature,
+            measureTime: r.measureTime,
+            description: `体温${r.temperature}℃（${r.feverLevel || '异常'}）`,
+          }));
+          return {
+            patientId: tempRecords[0]?.patientId || '',
+            patientName: tempRecords[0]?.patientName || '',
+            dept: tempRecords[0]?.dept || '',
+            sourceId: tempRecords[0]?.id || '',
+            sourceType: 'temperature',
+            description: `${timeWindow}小时内体温≥${tempThreshold}℃共${tempRecords.length}例`,
+            matchCount: tempRecords.length,
+            matchedRecords,
+          };
+        }
+        return null;
+      }
+
       default: {
         // Generic: try to match micro lab results for 多重耐药菌 category
         if (category === '多重耐药菌') {
@@ -478,6 +529,30 @@ async function testRule(rule: any): Promise<any> {
         const threshold = parseInt(conditionValue) || 3;
         wouldTrigger = compareValue(matchCount, conditionOperator, threshold);
         matchDetail = `${timeWindow}小时内感染病例${matchCount}例（阈值${threshold}）`;
+        break;
+      }
+      case 'temperature': {
+        const tempThreshold = parseFloat(conditionValue) || 38.0;
+        const tempRecords = await db.temperatureRecord.findMany({
+          where: {
+            temperature: { gte: tempThreshold },
+            measureTime: { gte: windowStart },
+            ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+          },
+          orderBy: { measureTime: 'desc' },
+          take: 20,
+        });
+        matchCount = tempRecords.length;
+        affectedPatients = tempRecords.map(r => ({
+          patientId: r.patientId,
+          patientName: r.patientName,
+          dept: r.dept,
+          temperature: r.temperature,
+          feverLevel: r.feverLevel,
+        }));
+        affectedDepts = [...new Set(tempRecords.map(r => r.dept).filter(Boolean))];
+        wouldTrigger = matchCount > 0;
+        matchDetail = `${timeWindow}小时内体温≥${tempThreshold}℃共${matchCount}例`;
         break;
       }
       default: {

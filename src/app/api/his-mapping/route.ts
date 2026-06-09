@@ -11,6 +11,7 @@ const businessScenarios = [
   { id: 'antibiotic', name: '抗菌药物使用', module: '抗菌药物', hisSystem: 'HIS医嘱系统', priority: '高', description: '抗菌药物使用数据统计和监测' },
   { id: 'hand-hygiene', name: '手卫生监测', module: '手卫生', hisSystem: 'HIS院感系统', priority: '中', description: '手卫生依从性监测数据' },
   { id: 'warning-rule', name: '预警规则配置', module: '智能预警', hisSystem: 'HIS院感系统', priority: '高', description: '基于规则引擎的智能预警系统' },
+  { id: 'temperature', name: '体温监测对接', module: '症状监测', hisSystem: 'HIS护理系统', priority: '高', description: '从HIS护理系统实时获取患者体温数据，自动判定发热并上报症状监测' },
 ];
 
 // Field mapping definitions for each business scenario
@@ -156,6 +157,18 @@ const fieldMappings: Record<string, Array<{
     { systemField: 'priority', systemLabel: '优先级', dataType: 'Int', length: 3, required: true, hisField: 'PRIORITY', hisTable: 'WARNING_RULE', transformRule: '直接映射', specialLogic: '数字越大优先级越高', validationRule: '0-999', consistencyRisk: '' },
     { systemField: 'targetDepts', systemLabel: '目标科室', dataType: 'String', length: 500, required: false, hisField: 'TARGET_DEPTS', hisTable: 'WARNING_RULE', transformRule: '科室编码列表解析', specialLogic: 'JSON数组格式', validationRule: '有效JSON数组', consistencyRisk: '科室编码映射需与科室字典同步' },
   ],
+  'temperature': [
+    { systemField: 'patientId', systemLabel: '患者编号', dataType: 'String', length: 20, required: true, hisField: 'HIS_PATIENT_ID', hisTable: 'PAT_VISIT', transformRule: '直接映射', specialLogic: '住院号，关联患者基本信息', validationRule: '非空', consistencyRisk: 'HIS住院号与院感系统患者ID编码规则不一致' },
+    { systemField: 'patientName', systemLabel: '患者姓名', dataType: 'String', length: 50, required: true, hisField: 'PATIENT_NAME', hisTable: 'PAT_VISIT', transformRule: '直接映射', specialLogic: '脱敏显示时仅显示姓+**', validationRule: '非空，2-50个字符', consistencyRisk: '姓名中可能含特殊字符' },
+    { systemField: 'temperature', systemLabel: '体温', dataType: 'Float', length: 5, required: true, hisField: 'BODY_TEMP', hisTable: 'NURSING_RECORD', transformRule: '直接映射', specialLogic: '需统一单位为摄氏度(℃)', validationRule: '35-42℃范围内', consistencyRisk: 'HIS体温单位可能不一致（℃/℉），测量途径影响正常值范围' },
+    { systemField: 'measureRoute', systemLabel: '测量途径', dataType: 'Enum', length: 10, required: true, hisField: 'MEASURE_ROUTE', hisTable: 'NURSING_RECORD', transformRule: '代码映射：1→腋下，2→口腔，3→耳温，4→肛温', specialLogic: '不同途径正常值范围不同', validationRule: '枚举值：腋下/口腔/耳温/肛温', consistencyRisk: 'HIS测量途径编码与院感枚举值需映射' },
+    { systemField: 'measureTime', systemLabel: '测量时间', dataType: 'DateTime', length: 20, required: true, hisField: 'MEASURE_TIME', hisTable: 'NURSING_RECORD', transformRule: '日期格式转换', specialLogic: '精确到分钟', validationRule: '有效日期时间，不晚于当前时间', consistencyRisk: 'HIS测量时间格式可能不一致' },
+    { systemField: 'dept', systemLabel: '科室', dataType: 'String', length: 50, required: true, hisField: 'DEPT_CODE', hisTable: 'PAT_VISIT', transformRule: '代码映射：HIS科室编码→院感科室名称', specialLogic: '需要科室字典映射表', validationRule: '非空，必须在科室字典中', consistencyRisk: 'HIS科室编码变更后映射表需同步更新' },
+    { systemField: 'bedNo', systemLabel: '床号', dataType: 'String', length: 20, required: false, hisField: 'BED_NO', hisTable: 'PAT_VISIT', transformRule: '直接映射', specialLogic: '转科时需记录原床号', validationRule: '字母+数字格式', consistencyRisk: '转科后HIS更新床号，院感需保留测量时床号' },
+    { systemField: 'nurseId', systemLabel: '护士编号', dataType: 'String', length: 20, required: false, hisField: 'NURSE_ID', hisTable: 'NURSING_RECORD', transformRule: '直接映射', specialLogic: '记录测量护士', validationRule: '可选', consistencyRisk: '' },
+    { systemField: 'isAbnormal', systemLabel: '是否异常体温', dataType: 'Enum', length: 4, required: true, hisField: 'calculated', hisTable: '-', transformRule: '计算字段：temp >= 37.3 → 是', specialLogic: '根据体温值和测量途径综合判定', validationRule: '布尔值', consistencyRisk: '异常体温判定标准需与测量途径对应' },
+    { systemField: 'isFever', systemLabel: '是否发热', dataType: 'Enum', length: 4, required: true, hisField: 'calculated', hisTable: '-', transformRule: '计算字段：temp >= 38.0 → 是', specialLogic: '达到发热阈值时自动上报症状监测', validationRule: '布尔值', consistencyRisk: '发热标准(≥38℃)与临床判定可能不完全一致' },
+  ],
 };
 
 // Data format conversion rules
@@ -222,6 +235,13 @@ const validationRules = [
   { form: '预警规则配置', field: 'conditions', ruleType: 'format', ruleDescription: '条件表达式需为有效JSON', errorMessage: '条件表达式JSON格式错误', severity: '高' },
   { form: '预警规则配置', field: 'code', ruleType: 'required', ruleDescription: '规则编码唯一', errorMessage: '规则编码已存在', severity: '高' },
   { form: '预警规则配置', field: 'thresholdValue', ruleType: 'range', ruleDescription: '阈值需为正数', errorMessage: '阈值必须为正数', severity: '中' },
+  // Temperature monitoring validation
+  { form: '体温监测对接', field: 'patientId', ruleType: 'required', ruleDescription: '患者编号不能为空', errorMessage: '请输入患者编号', severity: '高' },
+  { form: '体温监测对接', field: 'temperature', ruleType: 'required', ruleDescription: '体温值不能为空', errorMessage: '请输入体温值', severity: '高' },
+  { form: '体温监测对接', field: 'temperature', ruleType: 'range', ruleDescription: '体温值应在35-42℃范围内', errorMessage: '体温值超出合理范围(35-42℃)', severity: '高' },
+  { form: '体温监测对接', field: 'measureTime', ruleType: 'required', ruleDescription: '测量时间不能为空', errorMessage: '请输入测量时间', severity: '高' },
+  { form: '体温监测对接', field: 'dept', ruleType: 'required', ruleDescription: '科室不能为空', errorMessage: '请选择科室', severity: '高' },
+  { form: '体温监测对接', field: 'isFever', ruleType: 'business', ruleDescription: '体温≥38℃时自动上报症状监测', errorMessage: '发热患者未上报症状监测', severity: '高' },
 ];
 
 // Consistency issues
@@ -244,12 +264,25 @@ const consistencyIssues = [
 ];
 
 export async function GET() {
+  // Fetch temperature stats
+  let temperatureStats = null;
+  try {
+    const tempStatsUrl = new URL('/api/temperature-records/stats', 'http://localhost:3000');
+    const tempRes = await fetch(tempStatsUrl);
+    if (tempRes.ok) {
+      temperatureStats = await tempRes.json();
+    }
+  } catch {
+    // Temperature stats not available
+  }
+
   return NextResponse.json({
     businessScenarios,
     fieldMappings,
     conversionRules,
     validationRules,
     consistencyIssues,
+    temperatureStats,
     summary: {
       totalScenarios: businessScenarios.length,
       highPriorityCount: businessScenarios.filter(s => s.priority === '高').length,

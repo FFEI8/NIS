@@ -427,6 +427,37 @@ model WarningRule {
   updatedAt         DateTime @updatedAt
 }
 
+// ============ 体温监测数据模块（HIS对接） ============
+
+model TemperatureRecord {
+  id                String   @id @default(cuid())
+  patientId         String   // 患者ID（HIS住院号/门诊号）
+  patientName       String   // 患者姓名
+  gender            String?  // 性别
+  age               Int?     // 年龄
+  dept              String   // 科室
+  bedNo             String?  // 床号
+  visitId           String?  // 住院号/就诊号
+  temperature       Float    // 体温值（℃）
+  measureRoute      String   // 测量途径：腋下/口腔/直肠/耳温/额温
+  measureTime       DateTime // 测量时间
+  nurseId           String?  // 护士工号
+  nurseName         String?  // 护士姓名
+  hisSource         String   // 数据来源：HIS自动推送/护理录入/设备采集
+  isAbnormal        Int      @default(0) // 是否异常 0=否 1=是（≥37.3℃）
+  isFever           Int      @default(0) // 是否发热 0=否 1=是（≥38.0℃）
+  feverLevel        String?  // 发热分级：正常/低热/中度发热/高热/超高热
+  symptomSurveillanceId String? // 自动上报的症状监测记录ID
+  autoReported      Int      @default(0) // 是否已自动上报症状监测 0=否 1=是
+  warningTriggered  Int      @default(0) // 是否已触发预警 0=否 1=是
+  warningId         String?  // 关联预警ID
+  syncStatus        String   @default("已同步") // 同步状态：已同步/待同步/同步失败
+  syncTime          DateTime? // 同步时间
+  remarks           String?  // 备注
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 model DiseaseAlert {
   id                String   @id @default(cuid())
   alertType         String   // 法定传染病预警/聚集性疫情预警/症状监测预警/输入性传染病预警

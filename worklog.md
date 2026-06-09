@@ -863,3 +863,66 @@ Stage Summary:
 - React duplicate key warning fixed
 - All lint checks pass (0 errors)
 - All major pages verified working via agent-browser
+---
+Task ID: 4
+Agent: Frontend Developer
+Task: Add "体温表对接" (Temperature Chart Integration) tab to HIS Integration Analysis page
+
+Work Log:
+- **Created /api/temperature-records/stats/route.ts**: Mock data endpoint returning 128 temperature records with stats (totalRecords, feverCount, abnormalCount, reportedCount), 7-day trend data, department breakdown, and full record list with fever level calculations
+- **Created /api/temperature-records/sync/route.ts**: POST endpoint simulating HIS data sync, returning syncedRecords count and warningsTriggered count
+- **Updated /api/his-mapping/route.ts**:
+  - Added 'temperature' business scenario: 体温监测对接, module: 症状监测, hisSystem: HIS护理系统, priority: 高
+  - Added 10 temperature field mappings: patientId, patientName, temperature, measureRoute, measureTime, dept, bedNo, nurseId, isAbnormal (calculated), isFever (calculated)
+  - Added 6 temperature validation rules: required checks for patientId/temperature/measureTime/dept, range check for temperature (35-42°C), business rule for auto-reporting when >=38°C
+  - Added temperatureStats field to GET response, fetching from /api/temperature-records/stats
+- **Enhanced /src/components/pages/his-integration-analysis.tsx**: Added 6th tab "体温表对接" with:
+  - A. Temperature Data Summary Stats Bar: 4 stat cards (总记录数, 发热人数, 异常体温, 已上报症状监测)
+  - B. Smart Warning Rule Configuration Panel: auto-report toggle, fever threshold input, fever level dropdown, target departments multi-select, info text, save config (localStorage), sync HIS data button
+  - C. Temperature Data Table: 9 columns with color-coded temperatures (slate/amber/orange/red), fever level badges, auto-reported status badges, click-to-detail dialog, pagination
+  - D. Temperature Trend Chart: Pure SVG 7-day average temperature line chart with fever threshold dashed line, area fill, data point labels
+  - E. HIS Data Sync Dialog: Progress bar, sync results display (synced records + warnings triggered), "查看症状监测" button navigating to symptom surveillance page
+  - Temperature Record Detail Dialog: Full patient info, temperature with color coding, fever level, abnormal status, report status, warning for unreported fever patients
+- **Lint fix**: Changed warning config initialization from useEffect+setState to useState initializer function to avoid "set-state-in-effect" error
+- Lint passes with 0 errors
+
+Stage Summary:
+- HIS Integration Analysis page enhanced with 6th tab "体温表对接"
+- 2 new API endpoints: temperature-records/stats (GET), temperature-records/sync (POST)
+- his-mapping API updated with temperature scenario, 10 field mappings, 6 validation rules, temperatureStats
+- Temperature chart integration includes: stats bar, warning config, data table, SVG trend chart, sync dialog, detail dialog
+- All features use existing design patterns (emerald/slate, dark mode, shadcn/ui)
+- Temperature color coding: slate (normal), amber (37.3-37.9), orange (38-38.9), red (39+)
+- Lint passes with 0 errors
+
+---
+Task ID: 15
+Agent: Main Developer
+Task: Add Temperature Chart (体温表) with HIS integration and smart warning rules
+
+Work Log:
+- **Added TemperatureRecord model** to Prisma schema with 24 fields: patientId, patientName, gender, age, dept, bedNo, visitId, temperature, measureRoute, measureTime, nurseId, nurseName, hisSource, isAbnormal, isFever, feverLevel, symptomSurveillanceId, autoReported, warningTriggered, warningId, syncStatus, syncTime, remarks
+- **Created /api/temperature-records/route.ts**: GET (with filters: dept, patientName, isAbnormal, isFever, feverLevel, autoReported, measureRoute, dateRange) + POST (auto-calculates fever level, auto-creates SymptomSurveillance + WarningRecord when fever >= 38°C)
+- **Created /api/temperature-records/[id]/route.ts**: GET, PUT (recalculates fever level), DELETE
+- **Created /api/temperature-records/sync/route.ts**: POST that simulates HIS data push - generates 30 realistic temperature records, auto-processes fever warnings (17 triggered in test)
+- **Created /api/temperature-records/stats/route.ts**: GET with real-time database statistics: totalRecords, feverCount, abnormalCount, reportedCount, 7-day trend, dept breakdown, fever level breakdown, measure route breakdown, recent records
+- **Updated warning engine** (/api/warning-engine/route.ts): Added 'temperature' case to both evaluateRule and testRule functions, with support for temperature threshold queries within timeWindow, temperature record warning flag updates
+- **Enhanced HIS Integration Analysis page** (/src/components/pages/his-integration-analysis.tsx):
+  - Added 6th tab "体温表对接" with Thermometer icon
+  - Temperature data summary stats (总记录数, 发热人数, 异常体温, 已上报症状监测)
+  - Smart warning rule configuration panel (auto-report toggle, fever threshold, fever level filter, target departments, save config, sync HIS data button)
+  - Temperature data table with color coding (normal=slate, low fever=amber, moderate=orange, high=red)
+  - SVG temperature trend chart (7-day average with dashed fever threshold line)
+  - HIS data sync dialog with progress indicator
+  - Detail dialog with full patient info and fever level display
+  - Navigation to symptom surveillance page
+- **Updated his-mapping API**: Added 'temperature' business scenario, 10 field mappings, 6 validation rules
+- **Database synced**: TemperatureRecord model created, Prisma client regenerated
+- **Lint passes** with 0 errors
+
+Stage Summary:
+- **21 database models** total (added TemperatureRecord)
+- HIS体温表对接功能完整：数据接收→自动预警→症状监测自动上报
+- 智能预警规则：体温≥38°C自动创建症状监测记录+预警记录，无需手动新增
+- Sync API: 30 records synced, 17 fever warnings triggered
+- Full data flow verified: HIS push → temperature record → auto fever detection → SymptomSurveillance + WarningRecord creation
