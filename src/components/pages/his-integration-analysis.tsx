@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 
 // Types
 interface BusinessScenario {
@@ -311,10 +312,12 @@ function TemperatureTrendChart({ trend, threshold }: { trend: Array<{ date: stri
   );
 }
 
-// Department list for multi-select
-const ALL_DEPTS = ['ICU', '呼吸科', '神经外科', '肝胆外科', '骨科', '肿瘤科', '血液科', '肾内科', '心内科', '普外科'];
+// Department list fallback
+const ALL_DEPTS_FALLBACK = ['ICU', '呼吸科', '神经外科', '肝胆外科', '骨科', '肿瘤科', '血液科', '肾内科', '心内科', '普外科'];
 
 export default function HISIntegrationAnalysisPage() {
+  const { getDeptNames, getSystemConfig } = useConfigStore();
+  const ALL_DEPTS = getDeptNames().length > 0 ? getDeptNames() : ALL_DEPTS_FALLBACK;
   const [data, setData] = useState<HISMappingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedScenario, setSelectedScenario] = useState('infection-case');
@@ -329,6 +332,18 @@ export default function HISIntegrationAnalysisPage() {
 
   // Load warning config from localStorage
   const [warningConfig, setWarningConfig] = useState<WarningConfig>(() => {
+    const storedAutoReport = getSystemConfig('temperature_warning_auto_report');
+    const storedFeverThreshold = getSystemConfig('temperature_warning_fever_threshold');
+    const storedReportFeverLevel = getSystemConfig('temperature_warning_report_fever_level');
+    const storedTargetDepts = getSystemConfig('temperature_warning_target_depts');
+    if (storedAutoReport || storedFeverThreshold || storedReportFeverLevel) {
+      return {
+        autoReportEnabled: storedAutoReport ? storedAutoReport === 'true' : true,
+        feverThreshold: storedFeverThreshold ? parseFloat(storedFeverThreshold) : 38.0,
+        reportFeverLevel: storedReportFeverLevel || '中度发热',
+        targetDepts: storedTargetDepts ? storedTargetDepts.split(',').filter(Boolean) : [],
+      };
+    }
     try {
       const saved = localStorage.getItem('hims-temperature-warning-config');
       if (saved) {

@@ -478,3 +478,99 @@ model DiseaseAlert {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+// ============ 基础配置数据模块 ============
+
+model Department {
+  id          String   @id @default(cuid())
+  code        String   @unique // 科室编码
+  name        String   // 科室名称
+  type        String   @default("临床") // 临床/医技/行政
+  building    String?  // 楼栋
+  floor       String?  // 楼层
+  phone       String?  // 科室电话
+  headName    String?  // 科室主任
+  bedCount    Int      @default(0) // 床位数
+  sort        Int      @default(0) // 排序
+  status      Int      @default(1) // 1=启用 0=禁用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DiseaseCategory {
+  id              String   @id @default(cuid())
+  diseaseName     String   // 传染病名称
+  diseaseCode     String?  // ICD-10编码
+  category        String   // 甲类/乙类/丙类/其他
+  isNotifiable    Int      @default(1) // 是否法定报告 0=否 1=是
+  reportTimeLimit Int?     // 报告时限（小时）
+  isolationType   String?  // 隔离类型
+  description     String?  // 描述
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([diseaseName, category])
+}
+
+model DictItem {
+  id          String   @id @default(cuid())
+  category    String   // 字典分类（如：infection_site, specimen_type, warning_level 等）
+  code        String   // 字典编码
+  name        String   // 字典名称/显示值
+  color       String?  // UI颜色标识（如：rose, emerald, blue）
+  icon        String?  // 图标名称
+  extra       String?  // 扩展信息（JSON格式）
+  sort        Int      @default(0) // 排序
+  status      Int      @default(1) // 1=启用 0=禁用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, code])
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  configKey   String   @unique // 配置键
+  configValue String   // 配置值
+  configType  String   @default("string") // string/number/boolean/json
+  category    String   @default("general") // 配置分类
+  description String?  // 描述
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MdroRuleTemplate {
+  id              String   @id @default(cuid())
+  name            String   // 模板名称
+  mdroType        String   // 耐药菌类型编码（CRAB/CRKP/MRSA/VRE/CRPA）
+  bacteriaName    String   // 细菌中文名
+  description     String   // 模板描述
+  conditionValue  String   // 推荐匹配值（用于contains条件）
+  timeWindow      Int      @default(24) // 推荐时间窗口（小时）
+  warningLevel    String   @default("中") // 推荐预警级别
+  targetDepts     String?  // 推荐适用科室（逗号分隔）
+  cooldownMinutes Int      @default(120) // 推荐冷却时间（分钟）
+  priority        Int      @default(7) // 推荐优先级
+  riskNote        String?  // 风险提示
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TargetMonitoringItem {
+  id          String   @id @default(cuid())
+  title       String   // 监测项标题
+  description String?  // 描述
+  icon        String?  // 图标名称
+  targetRate  Float    @default(0) // 目标值（%）
+  currentRate Float    @default(0) // 当前值（%）
+  rateUnit    String   @default("%") // 单位
+  category    String   @default("感染监测") // 分类
+  sort        Int      @default(0)
+  status      Int      @default(1) // 1=启用 0=禁用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

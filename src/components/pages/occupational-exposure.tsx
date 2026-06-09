@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -16,6 +17,10 @@ import {
 import { ShieldAlert, Plus, Upload, RefreshCw } from 'lucide-react';
 
 function ExposureForm({ onSave, onClose }: { onSave: (data: any) => void; onClose: () => void }) {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'];
+  const exposureTypeOptions = getDictNames('exposure_type').length > 0 ? getDictNames('exposure_type') : ['针刺伤', '血液体液暴露', '其他'];
+
   const [form, setForm] = useState({ staffName: '', staffDept: '', exposureType: '针刺伤', exposurePart: '', exposureDate: new Date().toISOString().slice(0, 10), emergencyAction: '', riskLevel: '中' });
   const [saving, setSaving] = useState(false);
 
@@ -32,8 +37,8 @@ function ExposureForm({ onSave, onClose }: { onSave: (data: any) => void; onClos
       <div className="space-y-3 py-2">
         {[
           { label: '暴露人员', key: 'staffName', type: 'text', required: true },
-          { label: '科室', key: 'staffDept', type: 'select', options: ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'] },
-          { label: '暴露类型', key: 'exposureType', type: 'select', options: ['针刺伤', '血液体液暴露', '其他'] },
+          { label: '科室', key: 'staffDept', type: 'select', options: deptOptions },
+          { label: '暴露类型', key: 'exposureType', type: 'select', options: exposureTypeOptions },
           { label: '暴露部位', key: 'exposurePart', type: 'text', required: true },
           { label: '暴露日期', key: 'exposureDate', type: 'date' },
           { label: '紧急处理', key: 'emergencyAction', type: 'text' },

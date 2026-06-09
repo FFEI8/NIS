@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -17,6 +18,10 @@ import {
 import { Droplets, Plus, Save, RefreshCw } from 'lucide-react';
 
 function EnvMonitorForm({ onSave, onClose }: { onSave: (data: any) => void; onClose: () => void }) {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames('临床').length > 0 ? getDeptNames('临床') : ['手术室', 'ICU', '产房', '新生儿室', '供应室', '治疗室'];
+  const sampleTypeOptions = getDictNames('sample_type').length > 0 ? getDictNames('sample_type') : ['空气', '物体表面', '医务人员手'];
+
   const [form, setForm] = useState({ dept: '', samplePoint: '', sampleType: '空气', sampleDate: new Date().toISOString().slice(0, 10), colonyCount: '', standardLimit: '', result: '' });
   const [saving, setSaving] = useState(false);
 
@@ -31,9 +36,9 @@ function EnvMonitorForm({ onSave, onClose }: { onSave: (data: any) => void; onCl
     <>
       <div className="space-y-3 py-2">
         {[
-          { label: '科室', key: 'dept', type: 'select', options: ['手术室', 'ICU', '产房', '新生儿室', '供应室', '治疗室'], required: true },
+          { label: '科室', key: 'dept', type: 'select', options: deptOptions, required: true },
           { label: '采样点', key: 'samplePoint', type: 'text', required: true },
-          { label: '采样类型', key: 'sampleType', type: 'select', options: ['空气', '物体表面', '医务人员手'] },
+          { label: '采样类型', key: 'sampleType', type: 'select', options: sampleTypeOptions },
           { label: '采样日期', key: 'sampleDate', type: 'date' },
           { label: '菌落数', key: 'colonyCount', type: 'number' },
           { label: '标准限值', key: 'standardLimit', type: 'number' },

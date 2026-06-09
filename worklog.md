@@ -926,3 +926,248 @@ Stage Summary:
 - 智能预警规则：体温≥38°C自动创建症状监测记录+预警记录，无需手动新增
 - Sync API: 30 records synced, 17 fever warnings triggered
 - Full data flow verified: HIS push → temperature record → auto fever detection → SymptomSurveillance + WarningRecord creation
+
+---
+Task ID: 5
+Agent: API Routes Builder
+Task: Create API routes for configuration models (Department, DictItem, DiseaseCategory, SystemConfig, MdroRuleTemplate, TargetMonitoringItem)
+
+Work Log:
+- Read Prisma schema to understand 6 configuration models: Department, DictItem, DiseaseCategory, SystemConfig, MdroRuleTemplate, TargetMonitoringItem
+- Read api-utils.ts for getPaginationParams, getFilterParams utilities
+- Read existing infection-cases route pattern for consistency
+- Created 12 API route files:
+  1. /api/departments/route.ts - GET (filters: type, status, keyword) + POST, ordered by sort asc
+  2. /api/departments/[id]/route.ts - GET (404 check) + PUT + DELETE
+  3. /api/dict-items/route.ts - GET with special grouped mode (?grouped=1 returns items grouped by category as { "infection_site": [...], ... }) + normal paginated mode (filters: category, status, keyword) + POST
+  4. /api/dict-items/[id]/route.ts - GET (404 check) + PUT + DELETE
+  5. /api/disease-categories/route.ts - GET (filters: category, isNotifiable, keyword) + POST
+  6. /api/disease-categories/[id]/route.ts - GET (404 check) + PUT + DELETE
+  7. /api/system-configs/route.ts - GET with special asMap mode (?asMap=1 returns key-value map like { "fever_threshold": "38.0", ... }) + normal paginated mode (filters: category, configKey) + POST
+  8. /api/system-configs/[id]/route.ts - GET (404 check) + PUT + DELETE
+  9. /api/mdro-rule-templates/route.ts - GET (filters: mdroType, status) + POST
+  10. /api/mdro-rule-templates/[id]/route.ts - GET (404 check) + PUT + DELETE
+  11. /api/target-monitoring-items/route.ts - GET (filters: category, status) + POST
+  12. /api/target-monitoring-items/[id]/route.ts - GET (404 check) + PUT + DELETE
+- All routes follow existing project patterns: { db } from @/lib/db, getPaginationParams from @/lib/api-utils, NextResponse.json with { success: true/false, data/message }
+- [id] routes use params: Promise<{ id: string }> with await params (Next.js 16 pattern)
+- Integer fields (status, isNotifiable) properly parsed with parseInt()
+- Keyword filters use OR with contains for multiple fields
+- Special endpoints: dict-items grouped mode, system-configs asMap mode
+- Lint passes with 0 errors
+
+Stage Summary:
+- 12 API route files created for 6 configuration models
+- All routes follow existing project patterns consistently
+- Special query parameter handling: ?grouped=1 for dict-items, ?asMap=1 for system-configs
+- Proper filter support for each model based on schema fields
+- All [id] routes include GET with 404 handling, PUT, and DELETE
+
+## Task 6: Update seed route with comprehensive configuration model data
+
+**Date**: 2025-03-04
+**Agent**: main
+
+### Summary
+Updated `/home/z/my-project/src/app/api/seed/route.ts` to add comprehensive seed data for 6 new configuration models (Department, DiseaseCategory, DictItem, SystemConfig, MdroRuleTemplate, TargetMonitoringItem).
+
+### Changes Made
+
+1. **Added deleteMany for 6 new models** (lines 36-41):
+   - `db.department.deleteMany()`
+   - `db.diseaseCategory.deleteMany()`
+   - `db.dictItem.deleteMany()`
+   - `db.systemConfig.deleteMany()`
+   - `db.mdroRuleTemplate.deleteMany()`
+   - `db.targetMonitoringItem.deleteMany()`
+
+2. **Department** (24 departments): ICU, 呼吸科, 神经外科, 肝胆外科, 骨科, 肿瘤科, 血液科, 肾内科, 心内科, 普外科, 外科, 内科, 儿科, 妇产科, 急诊科, 感染科, 消化科, 手术室, 产房, 新生儿室, 供应室, 治疗室, 烧伤科, 皮肤科 - each with code, type (临床/医技), building, floor, bedCount, headName, phone.
+
+3. **DiseaseCategory** (39 diseases): 2 甲类 (鼠疫, 霍乱 with 2hr reportTimeLimit), 23 乙类 (新冠肺炎, 肺结核, 病毒性肝炎, 艾滋病, 梅毒, 淋病, 麻疹, etc. with 24hr reportTimeLimit), 13 丙类 (流感, 腮腺炎, 风疹, 手足口病, 水痘, etc. with 24hr reportTimeLimit), 1 其他.
+
+4. **DictItem** (comprehensive - 35+ categories, 150+ items): All dropdown options from all pages including infection_site, sample_type, specimen_type, mdro_type, warning_level, warning_type, alert_level, alert_type, alert_source, exposure_type, symptom_group, infection_case_status, warning_status, id_case_status, severity, report_type, isolation_type, outcome, relationship, contact_type, quarantine_type, follow_up_status, symptom_status, rule_category, rule_type, condition_operator, action_type, monitoring_field, gender, sterilization_method, env_review_status, lab_status, exposure_status, disease_alert_status, report_status, report_type_report, test_result, symptom_surveillance_status, measure_route, his_source.
+
+5. **SystemConfig** (12 configs): fever_threshold, fever_report_level, auto_report_enabled, sync_interval, mdro_cluster_threshold, mdro_cluster_window, and 6 target configs.
+
+6. **MdroRuleTemplate** (5 templates): CRAB, CRKP, MRSA, VRE, CRPA with appropriate warningLevel, timeWindow, targetDepts, cooldownMinutes, priority, riskNote.
+
+7. **TargetMonitoringItem** (6 items): 医院感染率, 抗菌药物使用率, 手卫生依从率, 环境卫生合格率, 灭菌合格率, 治疗用药前送检率.
+
+### Lint Result
+Passed with no errors.
+
+---
+Task ID: 6b
+Agent: Seed Route Optimizer
+Task: Remove configuration data from seed route to prevent Turbopack OOM crashes
+
+Work Log:
+- Read the seed route (/src/app/api/seed/route.ts) which was 1815 lines long
+- Identified 6 configuration data sections already seeded via scripts/seed-config.ts:
+  - Department (24 departments)
+  - DiseaseCategory (39 diseases)
+  - DictItem (comprehensive dropdown options, ~170 items)
+  - SystemConfig (12 configs)
+  - MdroRuleTemplate (5 templates)
+  - TargetMonitoringItem (6 items)
+- Removed 6 deleteMany calls for those models (department, diseaseCategory, dictItem, systemConfig, mdroRuleTemplate, targetMonitoringItem)
+- Added comment explaining these are seeded via scripts/seed-config.ts
+- Removed all 6 configuration data sections (~452 lines total)
+- Added comment noting configuration data is seeded separately
+- File reduced from 1815 to 1363 lines (452 lines removed, 25% reduction)
+- Kept all other seed data: Users, Roles, Permissions, Menus, InfectionCases, Warnings, EnvironmentalMonitors, SterilizationMonitors, OccupationalExposures, AntibioticUsage, HandHygiene, InfectionReports, InfectiousDiseaseCases, ContactTracings, SymptomSurveillance, DiseaseAlerts, WarningRules, MDRO WarningRules, MicroLabResults
+- Kept the existence check at the top that skips seeding if users already exist
+- Lint passes with 0 errors
+
+Stage Summary:
+- Seed route reduced from 1815 to 1363 lines (25% reduction)
+- 6 configuration data models removed (seeded separately via scripts/seed-config.ts)
+- 6 corresponding deleteMany calls removed
+- All business seed data preserved
+- No lint errors
+
+
+## Task 6c: Drastically rewrite seed route to be under 300 lines
+
+**Problem**: The seed route at `/src/app/api/seed/route.ts` was 1363 lines and caused Next.js dev server (Turbopack) OOM crash when compiling.
+
+**Solution**: Rewrote the entire file to 299 lines by:
+
+1. **Replaced 15 detailed InfectiousDiseaseCase records** (lines 412-623, ~210 lines) with a simple 5-record `Array.from` loop using pattern-based names like `患者${i+1}`
+2. **Replaced 20 detailed ContactTracing records** (lines 630-862, ~230 lines) with a simple 5-record `Array.from` loop
+3. **Replaced 12 detailed SymptomSurveillance records** (lines 866-963, ~100 lines) with a simple 5-record `Array.from` loop  
+4. **Replaced 8 detailed DiseaseAlert records** (lines 967-1050, ~80 lines) with a simple 5-record `Array.from` loop
+5. **Simplified MicroLabResult** from 12 detailed records to 5 compact ones
+6. **Consolidated MDRO warning rules** - removed 6 separate MDRO rule definitions, integrated key ones (CRAB, CRKP, MRSA) into the main warning rules array
+7. **Removed detailed WarningRule records** - kept 13 essential rules but in compact single-line format
+8. **Used a helper function `R()`** and compact code style throughout
+9. **Consolidated deleteMany operations** into a loop over an array of table references
+10. **Kept all core system data intact**: Users, Roles, Permissions, Menus, UserRole, RolePermission, RoleMenu
+
+**Result**: 1363 lines → 299 lines (78% reduction). Lint passes cleanly. Dev server compiles without OOM.
+
+---
+Task ID: 7-9
+Agent: Config Store Developer
+Task: Create frontend configuration store and update page components to use database-backed configuration data
+
+Work Log:
+- Created /src/store/config-store.ts with Zustand: 6 API data sources (departments, dict-items, disease-categories, system-configs, mdro-rule-templates, target-monitoring-items) + helper getters (getDeptNames, getDictNames, getDictItems, getDiseaseCategory, getSystemConfig)
+- Updated TargetMonitoringPage to use targetMonitoringItems from config store with fallback
+- Updated StatisticsPage to use getDeptNames() from config store + real data from dashboard/antibiotic APIs (replacing Math.random())
+- Updated MainApp (page.tsx) to call loadAllConfigs() on mount alongside refreshMenus()
+- Updated 11 page components to replace hardcoded dropdown options with config store data:
+  1. infection-cases.tsx: dept/infection_site/status from dict store
+  2. environmental-monitor.tsx: dept(sample type)/sample_type from dict store
+  3. occupational-exposure.tsx: dept/exposure_type from dict store
+  4. warnings.tsx: warning_type/warning_status/warning_level from dict store
+  5. infectious-disease-case.tsx: DISEASE_CATEGORY_MAP replaced with diseaseCategories, all dropdowns from dict store
+  6. contact-tracing.tsx: relationship/contact_type/exposure_level/symptom_status/quarantine_type/test_result/follow_up_status from dict store
+  7. symptom-surveillance.tsx: dept/symptom_group/status from dict store
+  8. disease-alert.tsx: alert_type/alert_level/alert_source/status from dict store
+  9. warning-rules.tsx: rule_category/rule_type/warning_level/warning_type/MDRO options from dict store + mdroRuleTemplates
+  10. micro-lab-results.tsx: MDRO type map from mdroRuleTemplates, specimen_type from dict store
+  11. his-integration-analysis.tsx: ALL_DEPTS from getDeptNames(), localStorage config from getSystemConfig()
+- All pages use fallback pattern: getDictNames('cat').length > 0 ? store data : hardcoded defaults
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- Config store created with 6 data sources + 5 helper getters
+- 13 page components + MainApp updated to use database-backed config
+- All hardcoded dropdown options replaced with dict data from DB
+- DISEASE_CATEGORY_MAP replaced with diseaseCategories from DB
+- Math.random() in statistics replaced with real API data
+- localStorage config in HIS page replaced with getSystemConfig()
+- Lint: 0 errors, 0 warnings
+
+---
+Task ID: 7-9
+Agent: Main Developer
+Task: Migrate all hardcoded/fake data to database-backed configuration
+
+Work Log:
+- Analyzed all 23 page components and identified fake/hardcoded data
+- Found 2 pages with entirely fake data (target-monitoring, statistics)
+- Found 4 pages with large hardcoded lookup maps (infectious-disease-case, warning-rules, micro-lab-results, his-integration)
+- Found 7 pages with hardcoded dropdown options
+- Designed and added 6 new Prisma models: Department, DiseaseCategory, DictItem, SystemConfig, MdroRuleTemplate, TargetMonitoringItem
+- Pushed schema to database
+- Created 12 API route files for the new models (GET/POST/PUT/DELETE for each)
+- Created standalone seed script (scripts/seed-config.ts) for configuration data
+- Seeded: 20 departments, 21 disease categories, 174 dict items across 40 categories, 12 system configs, 5 MDRO rule templates, 6 target monitoring items
+- Simplified main seed route from 1815 lines to 299 lines (to prevent OOM crashes)
+- Created frontend config store (src/store/config-store.ts) with zustand
+- Updated 14 page components to use DB-backed configuration:
+  - page.tsx (MainApp): Added loadAllConfigs() on mount
+  - target-monitoring.tsx: Uses targetMonitoringItems from store
+  - statistics.tsx: Uses real dashboard API data + getDeptNames()
+  - infection-cases.tsx: Uses getDeptNames(), getDictNames('infection_site'), getDictNames('infection_case_status')
+  - environmental-monitor.tsx: Uses getDeptNames('临床'), getDictNames('sample_type')
+  - occupational-exposure.tsx: Uses getDeptNames(), getDictNames('exposure_type')
+  - warnings.tsx: Uses getDictNames('warning_type/status/level')
+  - infectious-disease-case.tsx: Uses diseaseCategories from store, all dropdowns from dict
+  - contact-tracing.tsx: Uses 7 dict categories for options
+  - symptom-surveillance.tsx: Uses getDeptNames(), getDictNames('symptom_group/status')
+  - disease-alert.tsx: Uses getDictNames('alert_type/level/source/status')
+  - warning-rules.tsx: Uses getDictNames('rule_category/type'), mdroRuleTemplates
+  - micro-lab-results.tsx: Uses mdroRuleTemplates, getDictNames('specimen_type')
+  - his-integration-analysis.tsx: Uses getDeptNames(), getSystemConfig()
+- All pages include fallback arrays for when config data hasn't loaded yet
+- Lint passes with 0 errors
+
+Stage Summary:
+- **26 database models** total (20 original + 6 new configuration models)
+- **174 dict items** across 40 categories covering all dropdown options
+- **20 departments** as centralized department list
+- **21 disease categories** with notifiable disease classification
+- **12 system configuration** entries replacing localStorage usage
+- **5 MDRO rule templates** replacing hardcoded templates
+- **6 target monitoring items** replacing hardcoded monitoring data
+- All 14 page components now use DB-backed configuration with fallback
+- No more hardcoded department lists (previously inconsistent across pages)
+- No more hardcoded dropdown options (all from DictItem table)
+- Seed route optimized to prevent OOM crashes
+
+## 项目当前状态描述/判断
+
+**状态**: 所有虚拟/假数据已迁移到数据库，系统配置数据统一管理
+
+系统当前包含：
+- **26个数据库模型**: 7个系统管理 + 8个感染监测 + 4个传染病管理 + 2个预警规则 + 1个微生物检验 + 1个体温监测 + 1个疾病预警 + 6个基础配置
+- **174个字典项**: 覆盖40+个分类，所有下拉选项从数据库获取
+- **20个科室**: 统一科室管理，替代各页面不一致的硬编码科室列表
+- **21种传染病分类**: 甲类/乙类/丙类法定传染病完整分类
+- **12个系统配置**: 预警阈值、目标值等，替代localStorage
+
+## 当前目标/已完成的修改/验证结果
+
+**本轮完成**:
+1. ✅ 设计6个新数据库模型（Department, DiseaseCategory, DictItem, SystemConfig, MdroRuleTemplate, TargetMonitoringItem）
+2. ✅ 创建12个API路由文件
+3. ✅ 创建standalone seed脚本，填充所有配置数据
+4. ✅ 简化seed route（1815→299行）防止OOM
+5. ✅ 创建前端config-store统一管理配置
+6. ✅ 更新14个页面组件使用DB配置替代硬编码数据
+7. ✅ 所有页面添加fallback机制
+8. ✅ lint检查0 errors
+
+**验证结果**:
+- 生产build成功
+- 所有配置API返回正确数据
+- Departments: 20个科室
+- DictItems: 174条，40个分类
+- DiseaseCategories: 21条
+- SystemConfigs: 12条
+- TargetMonitoringItems: 6条
+- MdroRuleTemplates: 5条
+
+## 未解决问题或风险
+
+1. **服务器稳定性**: 开发模式下Turbopack仍会因内存限制崩溃，生产模式相对稳定但多次请求后也可能崩溃
+2. **配置数据实时性**: 配置数据在页面加载时一次性获取，管理页面修改配置后需要刷新页面才能生效
+3. **建议增强**:
+   - 配置管理界面（当前只能通过API修改配置）
+   - 字典项管理界面
+   - 科室管理界面
+   - 配置变更实时推送（WebSocket）
+   - 传染病分类自动匹配优化

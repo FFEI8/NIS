@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -16,6 +17,12 @@ import {
 import { Siren, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const { getDictNames } = useConfigStore();
+  const alertTypeOptions = getDictNames('alert_type').length > 0 ? getDictNames('alert_type') : ['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'];
+  const alertLevelOptions = getDictNames('alert_level').length > 0 ? getDictNames('alert_level') : ['红色', '橙色', '黄色', '蓝色'];
+  const alertSourceOptions = getDictNames('alert_source').length > 0 ? getDictNames('alert_source') : ['病例上报', '症状监测', '系统自动', '人工上报'];
+  const alertStatusOptions = getDictNames('alert_status').length > 0 ? getDictNames('alert_status') : ['待处理', '处理中', '已处理', '已关闭'];
+
   const [form, setForm] = useState({
     alertType: item?.alertType || '法定传染病预警', alertLevel: item?.alertLevel || '黄色',
     diseaseName: item?.diseaseName || '', alertSource: item?.alertSource || '人工上报',
@@ -47,10 +54,10 @@ function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data
           </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-2">
-          <FormField label="预警类型" required><select value={form.alertType} onChange={e => setForm(f => ({ ...f, alertType: e.target.value }))} className={selectClass}>{['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'].map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
-          <FormField label="预警等级" required><select value={form.alertLevel} onChange={e => setForm(f => ({ ...f, alertLevel: e.target.value }))} className={selectClass}>{['红色', '橙色', '黄色', '蓝色'].map(l => <option key={l} value={l}>{l}</option>)}</select></FormField>
+          <FormField label="预警类型" required><select value={form.alertType} onChange={e => setForm(f => ({ ...f, alertType: e.target.value }))} className={selectClass}>{alertTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
+          <FormField label="预警等级" required><select value={form.alertLevel} onChange={e => setForm(f => ({ ...f, alertLevel: e.target.value }))} className={selectClass}>{alertLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}</select></FormField>
           <FormField label="传染病名称"><Input value={form.diseaseName} onChange={e => setForm(f => ({ ...f, diseaseName: e.target.value }))} /></FormField>
-          <FormField label="预警来源"><select value={form.alertSource} onChange={e => setForm(f => ({ ...f, alertSource: e.target.value }))} className={selectClass}>{['病例上报', '症状监测', '系统自动', '人工上报'].map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
+          <FormField label="预警来源"><select value={form.alertSource} onChange={e => setForm(f => ({ ...f, alertSource: e.target.value }))} className={selectClass}>{alertSourceOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
           <FormField label="涉及科室"><Input value={form.affectedDept} onChange={e => setForm(f => ({ ...f, affectedDept: e.target.value }))} /></FormField>
           <FormField label="涉及人数"><Input type="number" value={form.affectedCount} onChange={e => setForm(f => ({ ...f, affectedCount: Number(e.target.value) }))} /></FormField>
           <FormField label="触发规则"><Input value={form.triggerRule} onChange={e => setForm(f => ({ ...f, triggerRule: e.target.value }))} /></FormField>
@@ -71,6 +78,11 @@ function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data
 }
 
 export default function DiseaseAlertPage() {
+  const { getDictNames } = useConfigStore();
+  const alertTypeOptions = getDictNames('alert_type').length > 0 ? getDictNames('alert_type') : ['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'];
+  const alertLevelOptions = getDictNames('alert_level').length > 0 ? getDictNames('alert_level') : ['红色', '橙色', '黄色', '蓝色'];
+  const alertStatusOptions = getDictNames('alert_status').length > 0 ? getDictNames('alert_status') : ['待处理', '处理中', '已处理', '已关闭'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -157,17 +169,17 @@ export default function DiseaseAlertPage() {
         <select value={filter.alertType} onChange={e => setFilter(f => ({ ...f, alertType: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部预警类型</option>
-          {['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'].map(t => <option key={t} value={t}>{t}</option>)}
+          {alertTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.alertLevel} onChange={e => setFilter(f => ({ ...f, alertLevel: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部等级</option>
-          {['红色', '橙色', '黄色', '蓝色'].map(l => <option key={l} value={l}>{l}</option>)}
+          {alertLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待处理', '处理中', '已处理', '已关闭'].map(s => <option key={s} value={s}>{s}</option>)}
+          {alertStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <Button variant="outline" size="sm" onClick={() => setPage(1)} className="gap-1.5">
           <Search size={14} /> 查询

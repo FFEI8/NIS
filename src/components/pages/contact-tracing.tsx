@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -17,6 +18,15 @@ import {
 import { UsersRound, Plus, Save, RefreshCw, Search, User, Biohazard, MapPin, ShieldCheck } from 'lucide-react';
 
 function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const { getDictNames } = useConfigStore();
+  const relationshipOptions = getDictNames('contact_relationship').length > 0 ? getDictNames('contact_relationship') : ['家属', '同事', '同病室', '医护', '其他'];
+  const contactTypeOptions = getDictNames('contact_type').length > 0 ? getDictNames('contact_type') : ['密切接触', '一般接触'];
+  const exposureLevelOptions = getDictNames('exposure_level').length > 0 ? getDictNames('exposure_level') : ['高', '中', '低'];
+  const symptomStatusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['无症状', '有症状', '已确诊'];
+  const quarantineTypeOptions = getDictNames('quarantine_type').length > 0 ? getDictNames('quarantine_type') : ['居家隔离', '集中隔离', '自我健康监测', '无需隔离'];
+  const testResultOptions = getDictNames('test_result').length > 0 ? getDictNames('test_result') : ['未检测', '阴性', '阳性'];
+  const followUpStatusOptions = getDictNames('follow_up_status').length > 0 ? getDictNames('follow_up_status') : ['待随访', '随访中', '已解除', '已转确诊'];
+
   const [form, setForm] = useState({
     caseId: item?.caseId || '', casePatientName: item?.casePatientName || '',
     contactName: item?.contactName || '', contactIdCard: item?.contactIdCard || '',
@@ -77,25 +87,25 @@ function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (da
           <div>
             <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1.5"><MapPin size={14} /> 接触信息</h4>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="与患者关系" required><select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} className={selectClass}>{['家属', '同事', '同病室', '医护', '其他'].map(r => <option key={r} value={r}>{r}</option>)}</select></FormField>
-              <FormField label="接触类型" required><select value={form.contactType} onChange={e => setForm(f => ({ ...f, contactType: e.target.value }))} className={selectClass}>{['密切接触', '一般接触'].map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
+              <FormField label="与患者关系" required><select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} className={selectClass}>{relationshipOptions.map(r => <option key={r} value={r}>{r}</option>)}</select></FormField>
+              <FormField label="接触类型" required><select value={form.contactType} onChange={e => setForm(f => ({ ...f, contactType: e.target.value }))} className={selectClass}>{contactTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
               <FormField label="接触日期" required><Input type="date" value={form.contactDate} onChange={e => setForm(f => ({ ...f, contactDate: e.target.value }))} /></FormField>
               <FormField label="接触时长"><Input value={form.contactDuration} onChange={e => setForm(f => ({ ...f, contactDuration: e.target.value }))} placeholder="如：2小时" /></FormField>
               <FormField label="接触地点"><Input value={form.contactLocation} onChange={e => setForm(f => ({ ...f, contactLocation: e.target.value }))} /></FormField>
-              <FormField label="暴露等级" required><select value={form.exposureLevel} onChange={e => setForm(f => ({ ...f, exposureLevel: e.target.value }))} className={selectClass}>{['高', '中', '低'].map(l => <option key={l} value={l}>{l}</option>)}</select></FormField>
+              <FormField label="暴露等级" required><select value={form.exposureLevel} onChange={e => setForm(f => ({ ...f, exposureLevel: e.target.value }))} className={selectClass}>{exposureLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}</select></FormField>
             </div>
           </div>
           <div>
             <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1.5"><ShieldCheck size={14} /> 隔离与检测</h4>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="症状状态"><select value={form.symptomStatus} onChange={e => setForm(f => ({ ...f, symptomStatus: e.target.value }))} className={selectClass}>{['无症状', '有症状', '已确诊'].map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
+              <FormField label="症状状态"><select value={form.symptomStatus} onChange={e => setForm(f => ({ ...f, symptomStatus: e.target.value }))} className={selectClass}>{symptomStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
               <FormField label="症状详情"><Input value={form.symptomDetail} onChange={e => setForm(f => ({ ...f, symptomDetail: e.target.value }))} /></FormField>
-              <FormField label="隔离方式"><select value={form.quarantineType} onChange={e => setForm(f => ({ ...f, quarantineType: e.target.value }))} className={selectClass}><option value="">请选择</option>{['居家隔离', '集中隔离', '自我健康监测', '无需隔离'].map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
+              <FormField label="隔离方式"><select value={form.quarantineType} onChange={e => setForm(f => ({ ...f, quarantineType: e.target.value }))} className={selectClass}><option value="">请选择</option>{quarantineTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
               <FormField label="隔离开始"><Input type="date" value={form.quarantineStart} onChange={e => setForm(f => ({ ...f, quarantineStart: e.target.value }))} /></FormField>
               <FormField label="隔离结束"><Input type="date" value={form.quarantineEnd} onChange={e => setForm(f => ({ ...f, quarantineEnd: e.target.value }))} /></FormField>
-              <FormField label="检测结果"><select value={form.testResult} onChange={e => setForm(f => ({ ...f, testResult: e.target.value }))} className={selectClass}>{['未检测', '阴性', '阳性'].map(r => <option key={r} value={r}>{r}</option>)}</select></FormField>
+              <FormField label="检测结果"><select value={form.testResult} onChange={e => setForm(f => ({ ...f, testResult: e.target.value }))} className={selectClass}>{testResultOptions.map(r => <option key={r} value={r}>{r}</option>)}</select></FormField>
               <FormField label="检测日期"><Input type="date" value={form.testDate} onChange={e => setForm(f => ({ ...f, testDate: e.target.value }))} /></FormField>
-              <FormField label="随访状态"><select value={form.followUpStatus} onChange={e => setForm(f => ({ ...f, followUpStatus: e.target.value }))} className={selectClass}>{['待随访', '随访中', '已解除', '已转确诊'].map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
+              <FormField label="随访状态"><select value={form.followUpStatus} onChange={e => setForm(f => ({ ...f, followUpStatus: e.target.value }))} className={selectClass}>{followUpStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></FormField>
               <FormField label="随访人"><Input value={form.followUpPerson} onChange={e => setForm(f => ({ ...f, followUpPerson: e.target.value }))} /></FormField>
               <FormField label="备注"><Input value={form.remark} onChange={e => setForm(f => ({ ...f, remark: e.target.value }))} /></FormField>
             </div>
@@ -114,6 +124,12 @@ function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (da
 }
 
 export default function ContactTracingPage() {
+  const { getDictNames } = useConfigStore();
+  const contactTypeOptions = getDictNames('contact_type').length > 0 ? getDictNames('contact_type') : ['密切接触', '一般接触'];
+  const statusOptions = getDictNames('contact_status').length > 0 ? getDictNames('contact_status') : ['待确认', '已确认', '已排除', '已解除'];
+  const followUpStatusOptions = getDictNames('follow_up_status').length > 0 ? getDictNames('follow_up_status') : ['待随访', '随访中', '已解除', '已转确诊'];
+  const exposureLevelOptions = getDictNames('exposure_level').length > 0 ? getDictNames('exposure_level') : ['高', '中', '低'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -214,22 +230,22 @@ export default function ContactTracingPage() {
         <select value={filter.contactType} onChange={e => setFilter(f => ({ ...f, contactType: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部接触类型</option>
-          {['密切接触', '一般接触'].map(t => <option key={t} value={t}>{t}</option>)}
+          {contactTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待确认', '已确认', '已排除', '已解除'].map(s => <option key={s} value={s}>{s}</option>)}
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.followUpStatus} onChange={e => setFilter(f => ({ ...f, followUpStatus: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部随访状态</option>
-          {['待随访', '随访中', '已解除', '已转确诊'].map(s => <option key={s} value={s}>{s}</option>)}
+          {followUpStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.exposureLevel} onChange={e => setFilter(f => ({ ...f, exposureLevel: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部暴露等级</option>
-          {['高', '中', '低'].map(l => <option key={l} value={l}>{l}</option>)}
+          {exposureLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
         <Button variant="outline" size="sm" onClick={() => setPage(1)} className="gap-1.5">
           <Search size={14} /> 查询

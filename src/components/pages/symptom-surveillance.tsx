@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -17,6 +18,11 @@ import {
 import { ScanSearch, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'];
+  const symptomGroupOptions = getDictNames('symptom_group').length > 0 ? getDictNames('symptom_group') : ['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'];
+  const statusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['待核实', '已核实', '排除', '已预警'];
+
   const [form, setForm] = useState({
     dept: item?.dept || '内科', patientId: item?.patientId || '', patientName: item?.patientName || '',
     gender: item?.gender || '男', age: item?.age || '', temperature: item?.temperature || '',
@@ -51,13 +57,13 @@ function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave
           </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-2">
-          <FormField label="科室" required><select value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value }))} className={selectClass}>{['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'].map(d => <option key={d} value={d}>{d}</option>)}</select></FormField>
+          <FormField label="科室" required><select value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value }))} className={selectClass}>{deptOptions.map(d => <option key={d} value={d}>{d}</option>)}</select></FormField>
           <FormField label="患者ID"><Input value={form.patientId} onChange={e => setForm(f => ({ ...f, patientId: e.target.value }))} /></FormField>
           <FormField label="患者姓名" required><Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} /></FormField>
           <FormField label="性别"><select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))} className={selectClass}><option value="男">男</option><option value="女">女</option></select></FormField>
           <FormField label="年龄"><Input type="number" value={form.age} onChange={e => setForm(f => ({ ...f, age: Number(e.target.value) }))} /></FormField>
           <FormField label="体温(°C)"><Input type="number" step="0.1" value={form.temperature} onChange={e => setForm(f => ({ ...f, temperature: Number(e.target.value) }))} /></FormField>
-          <FormField label="症状群" required><select value={form.symptomGroup} onChange={e => setForm(f => ({ ...f, symptomGroup: e.target.value }))} className={selectClass}>{['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'].map(g => <option key={g} value={g}>{g}</option>)}</select></FormField>
+          <FormField label="症状群" required><select value={form.symptomGroup} onChange={e => setForm(f => ({ ...f, symptomGroup: e.target.value }))} className={selectClass}>{symptomGroupOptions.map(g => <option key={g} value={g}>{g}</option>)}</select></FormField>
           <FormField label="发病日期" required><Input type="date" value={form.onsetDate} onChange={e => setForm(f => ({ ...f, onsetDate: e.target.value }))} /></FormField>
           <FormField label="报告日期"><Input type="date" value={form.reportDate} onChange={e => setForm(f => ({ ...f, reportDate: e.target.value }))} /></FormField>
           <FormField label="报告人"><Input value={form.reporter} onChange={e => setForm(f => ({ ...f, reporter: e.target.value }))} /></FormField>
@@ -79,6 +85,11 @@ function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave
 }
 
 export default function SymptomSurveillancePage() {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'];
+  const symptomGroupOptions = getDictNames('symptom_group').length > 0 ? getDictNames('symptom_group') : ['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'];
+  const statusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['待核实', '已核实', '排除', '已预警'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -156,17 +167,17 @@ export default function SymptomSurveillancePage() {
         <select value={filter.symptomGroup} onChange={e => setFilter(f => ({ ...f, symptomGroup: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部症状群</option>
-          {['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'].map(g => <option key={g} value={g}>{g}</option>)}
+          {symptomGroupOptions.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select value={filter.dept} onChange={e => setFilter(f => ({ ...f, dept: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部科室</option>
-          {['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'].map(d => <option key={d} value={d}>{d}</option>)}
+          {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待核实', '已核实', '排除', '已预警'].map(s => <option key={s} value={s}>{s}</option>)}
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.isClustered} onChange={e => setFilter(f => ({ ...f, isClustered: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">

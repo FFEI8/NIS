@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -15,23 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { Biohazard, Plus, Save, RefreshCw, Search, User, CalendarDays, ShieldCheck } from 'lucide-react';
 
-const DISEASE_CATEGORY_MAP: Record<string, string> = {
-  '鼠疫': '甲类', '霍乱': '甲类',
-  '新冠': '乙类', '新型冠状病毒感染': '乙类', '肺结核': '乙类', '病毒性肝炎': '乙类',
-  '麻疹': '乙类', '流行性出血热': '乙类', '狂犬病': '乙类', '流行性乙型脑炎': '乙类',
-  '登革热': '乙类', '炭疽': '乙类', '细菌性和阿米巴性痢疾': '乙类', '肺炭疽': '乙类',
-  '伤寒和副伤寒': '乙类', '流行性脑脊髓膜炎': '乙类', '百日咳': '乙类', '白喉': '乙类',
-  '新生儿破伤风': '乙类', '猩红热': '乙类', '布鲁氏菌病': '乙类', '淋病': '乙类',
-  '梅毒': '乙类', '钩端螺旋体病': '乙类', '血吸虫病': '乙类', '疟疾': '乙类',
-  '人感染H7N9禽流感': '乙类', '艾滋病': '乙类',
-  '流行性感冒': '丙类', '流感': '丙类', '流行性腮腺炎': '丙类', '腮腺炎': '丙类',
-  '风疹': '丙类', '手足口病': '丙类', '急性出血性结膜炎': '丙类', '麻风病': '丙类',
-  '流行性和地方性斑疹伤寒': '丙类', '黑热病': '丙类', '包虫病': '丙类', '丝虫病': '丙类',
-  '其他感染性腹泻病': '丙类', '水痘': '丙类',
-};
-
-export { DISEASE_CATEGORY_MAP };
-
 function CategoryBadge({ category }: { category: string }) {
   const colors: Record<string, string> = {
     '甲类': 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
@@ -45,6 +29,20 @@ function CategoryBadge({ category }: { category: string }) {
 export { CategoryBadge };
 
 function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const { getDeptNames, getDictNames, diseaseCategories, getDiseaseCategory } = useConfigStore();
+
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'];
+  const statusOptions = getDictNames('id_case_status').length > 0 ? getDictNames('id_case_status') : ['待审核', '已审核', '退回', '已上报', '已结案'];
+  const severityOptions = getDictNames('id_case_severity').length > 0 ? getDictNames('id_case_severity') : ['轻症', '普通', '重症', '危重症'];
+  const reportTypeOptions = getDictNames('id_report_type').length > 0 ? getDictNames('id_report_type') : ['初次报告', '订正报告', '转归报告'];
+  const isolationTypeOptions = getDictNames('id_isolation_type').length > 0 ? getDictNames('id_isolation_type') : ['居家隔离', '集中隔离', '住院隔离', '无需隔离'];
+  const outcomeOptions = getDictNames('id_outcome').length > 0 ? getDictNames('id_outcome') : ['治愈', '好转', '未愈', '死亡', '其他'];
+
+  // Disease options from diseaseCategories
+  const diseaseOptions = diseaseCategories.length > 0
+    ? diseaseCategories.map(dc => dc.diseaseName)
+    : ['鼠疫', '霍乱', '新冠', '肺结核', '病毒性肝炎', '麻疹', '流感', '手足口病', '腮腺炎', '水痘'];
+
   const [form, setForm] = useState({
     patientId: item?.patientId || '', patientName: item?.patientName || '', gender: item?.gender || '男',
     age: item?.age || '', idCard: item?.idCard || '', phone: item?.phone || '', address: item?.address || '',
@@ -64,7 +62,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
   const [saving, setSaving] = useState(false);
 
   const handleDiseaseNameChange = (name: string) => {
-    const cat = DISEASE_CATEGORY_MAP[name] || '其他';
+    const cat = getDiseaseCategory(name);
     setForm(f => ({ ...f, diseaseName: name, diseaseCategory: cat }));
   };
 
@@ -75,8 +73,6 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
     onSave(form);
     setSaving(false);
   };
-
-  const diseaseOptions = Object.keys(DISEASE_CATEGORY_MAP);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -124,13 +120,13 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
               <FormField label="报告类型">
                 <select value={form.reportType} onChange={e => setForm(f => ({ ...f, reportType: e.target.value }))}
                   className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
-                  {['初次报告', '订正报告', '转归报告'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {reportTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </FormField>
               <FormField label="严重程度">
                 <select value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
                   className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
-                  {['轻症', '普通', '重症', '危重症'].map(s => <option key={s} value={s}>{s}</option>)}
+                  {severityOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </FormField>
               <FormField label="感染来源"><Input value={form.infectionSource} onChange={e => setForm(f => ({ ...f, infectionSource: e.target.value }))} /></FormField>
@@ -144,7 +140,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
               <FormField label="报告科室" required>
                 <select value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value }))}
                   className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
-                  {['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'].map(d => <option key={d} value={d}>{d}</option>)}
+                  {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </FormField>
               <FormField label="床号"><Input value={form.bedNo} onChange={e => setForm(f => ({ ...f, bedNo: e.target.value }))} /></FormField>
@@ -161,7 +157,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
                 <select value={form.isolationType} onChange={e => setForm(f => ({ ...f, isolationType: e.target.value }))}
                   className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="">请选择</option>
-                  {['居家隔离', '集中隔离', '住院隔离', '无需隔离'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {isolationTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </FormField>
               <FormField label="隔离开始日期"><Input type="date" value={form.isolationDate} onChange={e => setForm(f => ({ ...f, isolationDate: e.target.value }))} /></FormField>
@@ -169,7 +165,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
                 <select value={form.outcome} onChange={e => setForm(f => ({ ...f, outcome: e.target.value }))}
                   className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="">请选择</option>
-                  {['治愈', '好转', '未愈', '死亡', '其他'].map(o => <option key={o} value={o}>{o}</option>)}
+                  {outcomeOptions.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </FormField>
               <FormField label="转归日期"><Input type="date" value={form.outcomeDate} onChange={e => setForm(f => ({ ...f, outcomeDate: e.target.value }))} /></FormField>
@@ -189,6 +185,13 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
 }
 
 export default function InfectiousDiseaseCasePage() {
+  const { getDeptNames, getDictNames, diseaseCategories } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'];
+  const statusOptions = getDictNames('id_case_status').length > 0 ? getDictNames('id_case_status') : ['待审核', '已审核', '退回', '已上报', '已结案'];
+  const categoryOptions = diseaseCategories.length > 0
+    ? [...new Set(diseaseCategories.map(dc => dc.category))]
+    : ['甲类', '乙类', '丙类', '其他'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -280,17 +283,17 @@ export default function InfectiousDiseaseCasePage() {
         <select value={filter.diseaseCategory} onChange={e => setFilter(f => ({ ...f, diseaseCategory: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部分类</option>
-          {['甲类', '乙类', '丙类', '其他'].map(c => <option key={c} value={c}>{c}</option>)}
+          {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待审核', '已审核', '退回', '已上报', '已结案'].map(s => <option key={s} value={s}>{s}</option>)}
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.dept} onChange={e => setFilter(f => ({ ...f, dept: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部科室</option>
-          {['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'].map(d => <option key={d} value={d}>{d}</option>)}
+          {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <Input type="date" value={filter.startDate} onChange={e => setFilter(f => ({ ...f, startDate: e.target.value }))} className="w-36 h-8 text-sm" />
         <span className="text-slate-400 self-center">~</span>

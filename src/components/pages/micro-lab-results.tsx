@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Pagination } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react';
 
 // ============ MDRO Type Mapping ============
-const MDRO_TYPE_MAP: Record<string, { label: string; fullName: string; color: string }> = {
+const MDRO_TYPE_MAP_FALLBACK: Record<string, { label: string; fullName: string; color: string }> = {
   'CRAB': { label: 'CRAB', fullName: '耐碳青霉烯类鲍曼不动杆菌', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   'CRKP': { label: 'CRKP', fullName: '耐碳青霉烯类肺炎克雷伯菌', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   'MRSA': { label: 'MRSA', fullName: '耐甲氧西林金黄色葡萄球菌', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
@@ -25,7 +26,7 @@ const MDRO_TYPE_MAP: Record<string, { label: string; fullName: string; color: st
   'CRPA': { label: 'CRPA', fullName: '耐碳青霉烯类铜绿假单胞菌', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
 };
 
-const SPECIMEN_TYPE_MAP: Record<string, { label: string; color: string }> = {
+const SPECIMEN_TYPE_MAP_FALLBACK: Record<string, { label: string; color: string }> = {
   '痰液': { label: '痰液', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   '尿液': { label: '尿液', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
   '血液': { label: '血液', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -36,7 +37,12 @@ const SPECIMEN_TYPE_MAP: Record<string, { label: string; color: string }> = {
 
 // ============ MDRO Badge ============
 function MDROBadge({ mdroType }: { mdroType: string }) {
-  const info = MDRO_TYPE_MAP[mdroType];
+  const info = useConfigStore.getState().mdroRuleTemplates.length > 0
+    ? (() => {
+        const tpl = useConfigStore.getState().mdroRuleTemplates.find(t => t.mdroType === mdroType);
+        return tpl ? { label: tpl.mdroType, fullName: tpl.bacteriaName, color: MDRO_TYPE_MAP_FALLBACK[mdroType]?.color || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' } : null;
+      })()
+    : MDRO_TYPE_MAP_FALLBACK[mdroType];
   if (!info) return <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">{mdroType}</Badge>;
   return (
     <Badge className={`${info.color} text-[10px] font-medium gap-0.5`}>
@@ -47,7 +53,12 @@ function MDROBadge({ mdroType }: { mdroType: string }) {
 
 // ============ Specimen Badge ============
 function SpecimenBadge({ type }: { type: string }) {
-  const info = SPECIMEN_TYPE_MAP[type];
+  const info = useConfigStore.getState().getDictItems('specimen_type').length > 0
+    ? (() => {
+        const item = useConfigStore.getState().getDictItems('specimen_type').find(d => d.name === type);
+        return item ? { label: item.name, color: item.color || SPECIMEN_TYPE_MAP_FALLBACK[type]?.color || 'bg-slate-100 text-slate-600' } : null;
+      })()
+    : SPECIMEN_TYPE_MAP_FALLBACK[type];
   if (!info) return <Badge variant="outline" className="text-[10px]">{type}</Badge>;
   return <Badge className={`${info.color} text-[10px]`}>{info.label}</Badge>;
 }
@@ -171,6 +182,12 @@ function LabResultDetailDialog({ open, onClose, item }: { open: boolean; onClose
 
 // ============ Main Page ============
 export default function MicroLabResultsPage() {
+  const { getDictNames, mdroRuleTemplates } = useConfigStore();
+  const specimenOptions = getDictNames('specimen_type').length > 0 ? getDictNames('specimen_type') : ['痰液', '尿液', '血液', '分泌物', '肺泡灌洗液', '血清'];
+  const mdroTypeMap = mdroRuleTemplates.length > 0
+    ? Object.fromEntries(mdroRuleTemplates.map(t => [t.mdroType, { label: t.mdroType, fullName: t.bacteriaName, color: MDRO_TYPE_MAP_FALLBACK[t.mdroType]?.color || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' }]))
+    : MDRO_TYPE_MAP_FALLBACK;
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -269,7 +286,7 @@ export default function MicroLabResultsPage() {
     if (isMDRO !== 1) return <span className="text-slate-700 dark:text-slate-300">{name}</span>;
     // Highlight MDRO keywords in the name
     let highlighted = name;
-    for (const [type, info] of Object.entries(MDRO_TYPE_MAP)) {
+    for (const [type, info] of Object.entries(mdroTypeMap)) {
       if (name.includes(type)) {
         highlighted = name.replace(type, `<mark class="${info.color} rounded px-0.5">${type}</mark>`);
       }
@@ -382,12 +399,12 @@ export default function MicroLabResultsPage() {
         <select value={filter.specimenType} onChange={e => setFilter(f => ({ ...f, specimenType: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部标本</option>
-          {['痰液', '尿液', '血液', '分泌物', '肺泡灌洗液', '血清'].map(t => <option key={t} value={t}>{t}</option>)}
+          {specimenOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.mdroType} onChange={e => setFilter(f => ({ ...f, mdroType: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部MDRO</option>
-          {Object.entries(MDRO_TYPE_MAP).map(([k, v]) => <option key={k} value={k}>{v.label} - {v.fullName}</option>)}
+          {Object.entries(mdroTypeMap).map(([k, v]) => <option key={k} value={k}>{v.label} - {v.fullName}</option>)}
         </select>
         <select value={filter.isAbnormal} onChange={e => setFilter(f => ({ ...f, isAbnormal: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">

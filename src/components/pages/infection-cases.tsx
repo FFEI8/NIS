@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
@@ -17,6 +18,11 @@ import {
 import { Activity, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function InfectionCaseForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'];
+  const infectionSiteOptions = getDictNames('infection_site').length > 0 ? getDictNames('infection_site') : ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道'];
+  const statusOptions = getDictNames('infection_case_status').length > 0 ? getDictNames('infection_case_status') : ['待审核', '已确认', '已排除'];
+
   const [form, setForm] = useState({
     patientId: item?.patientId || '', patientName: item?.patientName || '', gender: item?.gender || '男',
     age: item?.age || '', dept: item?.dept || '内科', infectionSite: item?.infectionSite || '',
@@ -49,10 +55,10 @@ function InfectionCaseForm({ item, onSave, onClose }: { item?: any; onSave: (dat
             { label: '患者姓名', key: 'patientName', type: 'text', required: true },
             { label: '性别', key: 'gender', type: 'select', options: ['男', '女'] },
             { label: '年龄', key: 'age', type: 'number' },
-            { label: '科室', key: 'dept', type: 'select', options: ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'] },
-            { label: '感染部位', key: 'infectionSite', type: 'select', options: ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道'], required: true },
+            { label: '科室', key: 'dept', type: 'select', options: deptOptions },
+            { label: '感染部位', key: 'infectionSite', type: 'select', options: infectionSiteOptions, required: true },
             { label: '病原体', key: 'pathogen', type: 'text' },
-            { label: '状态', key: 'status', type: 'select', options: ['待审核', '已确认', '已排除'] },
+            { label: '状态', key: 'status', type: 'select', options: statusOptions },
           ].map(field => (
             <FormField key={field.key} label={field.label} required={field.required}>
               {field.type === 'select' ? (
@@ -79,6 +85,11 @@ function InfectionCaseForm({ item, onSave, onClose }: { item?: any; onSave: (dat
 }
 
 export default function InfectionCasesPage() {
+  const { getDeptNames, getDictNames } = useConfigStore();
+  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '血液科', '肿瘤科'];
+  const infectionSiteOptions = getDictNames('infection_site').length > 0 ? getDictNames('infection_site') : ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道', '中枢神经'];
+  const statusOptions = getDictNames('infection_case_status').length > 0 ? getDictNames('infection_case_status') : ['待审核', '已确认', '已排除'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -150,17 +161,17 @@ export default function InfectionCasesPage() {
         <select value={filter.dept} onChange={e => setFilter(f => ({ ...f, dept: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部科室</option>
-          {['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '血液科', '肿瘤科'].map(d => <option key={d} value={d}>{d}</option>)}
+          {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待审核', '已确认', '已排除'].map(s => <option key={s} value={s}>{s}</option>)}
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.infectionSite} onChange={e => setFilter(f => ({ ...f, infectionSite: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部部位</option>
-          {['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道', '中枢神经'].map(s => <option key={s} value={s}>{s}</option>)}
+          {infectionSiteOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <Button variant="outline" size="sm" onClick={() => setPage(1)} className="gap-1.5">
           <Search size={14} /> 查询

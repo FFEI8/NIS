@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ComponentType } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 import { Hospital, RefreshCw, Loader2 } from 'lucide-react';
 import LoginPage from '@/components/layout/login-page';
 import Sidebar from '@/components/layout/sidebar';
@@ -96,6 +97,7 @@ function ContentArea() {
 // ============ Main App ============
 function MainApp() {
   const refreshMenus = useAppStore(s => s.refreshMenus);
+  const loadAllConfigs = useConfigStore(s => s.loadAllConfigs);
 
   useEffect(() => {
     // On mount, re-fetch menus from API to sync with latest DB state.
@@ -104,7 +106,9 @@ function MainApp() {
     // The API also handles session recovery: if the userId is invalid (e.g. DB re-seeded),
     // it falls back to username lookup, and if both fail, clears the session (forces re-login).
     refreshMenus();
-  }, [refreshMenus]);
+    // Load all configuration data from backend (departments, dict items, etc.)
+    loadAllConfigs();
+  }, [refreshMenus, loadAllConfigs]);
 
   return (
     <div className="h-screen flex bg-slate-50 dark:bg-slate-900">

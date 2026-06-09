@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useConfigStore } from '@/store/config-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, Pagination } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Search } from 'lucide-react';
 
 export default function WarningsPage() {
+  const { getDictNames } = useConfigStore();
+  const warningTypeOptions = getDictNames('warning_type').length > 0 ? getDictNames('warning_type') : ['病例预警', '聚集预警', '暴发预警'];
+  const warningStatusOptions = getDictNames('warning_status').length > 0 ? getDictNames('warning_status') : ['待处理', '已确认', '已排除', '已处理'];
+  const warningLevelOptions = getDictNames('warning_level').length > 0 ? getDictNames('warning_level') : ['高', '中', '低'];
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -54,17 +60,17 @@ export default function WarningsPage() {
         <select value={filter.type} onChange={e => setFilter(f => ({ ...f, type: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部类型</option>
-          {['病例预警', '聚集预警', '暴发预警'].map(t => <option key={t} value={t}>{t}</option>)}
+          {warningTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部状态</option>
-          {['待处理', '已确认', '已排除', '已处理'].map(s => <option key={s} value={s}>{s}</option>)}
+          {warningStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.level} onChange={e => setFilter(f => ({ ...f, level: e.target.value }))}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
           <option value="">全部级别</option>
-          {['高', '中', '低'].map(l => <option key={l} value={l}>{l}</option>)}
+          {warningLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
         <Button variant="outline" size="sm" onClick={() => setPage(1)} className="gap-1.5">
           <Search size={14} /> 查询
