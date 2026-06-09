@@ -542,3 +542,36 @@ Stage Summary:
 - Dashboard API: findMany without limits → count/aggregate with parallel execution
 - Warning rules page: Quick Create MDRO Rule feature with 5 bacteria-specific templates
 - All lint checks pass (0 errors, 0 warnings)
+
+---
+Task ID: 11
+Agent: Main Developer
+Task: Fix menu management "隐藏" (hidden) not taking effect bug
+
+Work Log:
+- **Root cause analysis**: When editing a menu and setting `visible: 0` (隐藏), the change WAS saved to the database correctly, but the sidebar still showed the menu because:
+  1. The zustand store's `userMenus` was only set during login, never refreshed after menu edits
+  2. The sidebar renders menus from the zustand store, which still had old `visible: 1` values
+  3. The `loadUserInfo` action in the store was calling a non-existent `/api/auth/me` endpoint (should be `/api/auth/current`)
+  4. The login API had a 5-minute menu tree cache that wasn't invalidated when menus were updated
+- **Fixed `loadUserInfo` endpoint**: Changed from `fetch('/api/auth/me')` to `fetch('/api/auth/current', { method: 'POST', body: JSON.stringify({ userId: currentUser.id }) })`
+- **Added `refreshMenus` action** to app-store: A dedicated action that re-fetches only the menu tree from `/api/auth/current` and updates `userMenus` in the store
+- **Updated menu management page**: After save (add/edit) and delete, calls `refreshMenus()` to immediately update the sidebar
+- **Added quick visibility toggle**: New "显示/隐藏" button on each menu item in the tree view for one-click toggle without opening the edit form
+- **Enhanced menu management UI**:
+  - Hidden menus show "隐藏" badge with EyeOff icon and amber color
+  - Hidden menus display with reduced opacity and strikethrough text
+  - Warning message when setting menu to hidden ("此菜单设为隐藏后将不会在侧边栏中显示")
+  - Dropdown highlight for "隐藏" selection (amber border/background)
+  - Tip text about quick toggle in the page header
+- **Created shared menu cache module** (`/src/lib/menu-cache.ts`): Extracted menu tree cache from login route into a shared module with `getMenuTreeCache`, `setMenuTreeCache`, and `invalidateMenuTreeCache` functions
+- **Added cache invalidation**: All menu CRUD operations (POST /api/menus, PUT /api/menus/[id], DELETE /api/menus/[id]) now call `invalidateMenuTreeCache()` to ensure fresh data on next request
+- **Optimized /api/auth/current endpoint**: Replaced deep nested `include` query with 4 flat parallel queries (same optimization as login route), added menu tree caching
+- **Verified fix**: Used agent-browser to test hiding "首页" menu - sidebar immediately removed it; clicking "显示" brought it back
+- Lint passes with 0 errors
+
+Stage Summary:
+- **Bug fixed**: Menu "隐藏" now takes effect immediately in the sidebar
+- 4 related bugs fixed in one go (store endpoint, menu refresh, cache invalidation, current API optimization)
+- Menu management page enhanced with quick toggle, visibility indicators, and warning messages
+- Shared menu cache module created for consistent caching across routes

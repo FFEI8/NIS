@@ -1,22 +1,27 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { buildMenuTree } from '@/lib/api-utils';
+import { getMenuTreeCache, setMenuTreeCache } from '@/lib/menu-cache';
 
 export async function POST(request: Request) {
   try {
     const { userId } = await request.json();
-    
+
+    // Step 1: Find user with role IDs only
     const user = await db.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatar: true,
+        phone: true,
+        email: true,
+        dept: true,
+        status: true,
         roles: {
-          include: {
-            role: {
-              include: {
-                permissions: { include: { permission: true } },
-                menus: { include: { menu: true } },
-              },
-            },
+          select: {
+            roleId: true,
           },
         },
       },
@@ -26,20 +31,62 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: '用户不存在' }, { status: 404 });
     }
 
-    const permissions = [...new Set(
-      user.roles.flatMap(ur => ur.role.permissions.map(rp => rp.permission.code))
-    )];
+    if (user.status !== 1) {
+      return NextResponse.json({ success: false, message: '该用户已被禁用' }, { status: 403 });
+    }
 
-    const menuIds = [...new Set(
-      user.roles.flatMap(ur => ur.role.menus.map(rm => rm.menuId))
-    )];
+    const roleIds = user.roles.map(ur => ur.roleId);
 
-    const menus = await db.menu.findMany({
-      where: { id: { in: menuIds }, status: 1 },
-      orderBy: { sort: 'asc' },
-    });
+    // Step 2-4: Fetch role info, permission codes, and menu IDs in parallel
+    const [rolesInfo, permResult, menuIdResult] = await Promise.all([
+      db.role.findMany({
+        where: { id: { in: roleIds } },
+        select: { id: true, code: true, name: true },
+      }),
+      db.rolePermission.findMany({
+        where: { roleId: { in: roleIds } },
+        select: { permission: { select: { code: true } } },
+      }),
+      db.roleMenu.findMany({
+        where: { roleId: { in: roleIds } },
+        select: { menuId: true },
+      }),
+    ]);
 
-    const menuTree = buildMenuTree(menus);
+    // Deduplicate permission codes
+    const permissions = [...new Set(permResult.map(rp => rp.permission.code))];
+
+    // Deduplicate menu IDs
+    const menuIds = [...new Set(menuIdResult.map(rm => rm.menuId))];
+
+    // Step 5: Build menu tree (with caching)
+    const menuIdsKey = menuIds.sort().join(',');
+    let menuTree: any[];
+
+    const cachedTree = getMenuTreeCache(menuIdsKey);
+    if (cachedTree) {
+      menuTree = cachedTree;
+    } else {
+      const menus = await db.menu.findMany({
+        where: { id: { in: menuIds }, status: 1 },
+        select: {
+          id: true,
+          parentId: true,
+          name: true,
+          code: true,
+          path: true,
+          icon: true,
+          component: true,
+          sort: true,
+          type: true,
+          visible: true,
+          status: true,
+        },
+        orderBy: { sort: 'asc' },
+      });
+      menuTree = buildMenuTree(menus);
+      setMenuTreeCache(menuIdsKey, menuTree);
+    }
 
     return NextResponse.json({
       success: true,
@@ -53,10 +100,10 @@ export async function POST(request: Request) {
           email: user.email,
           dept: user.dept,
           status: user.status,
-          roles: user.roles.map(ur => ({
-            id: ur.role.id,
-            code: ur.role.code,
-            name: ur.role.name,
+          roles: rolesInfo.map(r => ({
+            id: r.id,
+            code: r.code,
+            name: r.name,
           })),
         },
         permissions,

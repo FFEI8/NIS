@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { buildMenuTree } from '@/lib/api-utils';
-
-// Cache for menu tree to avoid rebuilding on every login
-let menuTreeCache: { data: any[]; menuIdsKey: string; timestamp: number } | null = null;
-const MENU_TREE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+import { getMenuTreeCache, setMenuTreeCache } from '@/lib/menu-cache';
 
 export async function POST(request: Request) {
   try {
@@ -72,8 +69,9 @@ export async function POST(request: Request) {
     const menuIdsKey = menuIds.sort().join(',');
     let menuTree: any[];
 
-    if (menuTreeCache && menuTreeCache.menuIdsKey === menuIdsKey && Date.now() - menuTreeCache.timestamp < MENU_TREE_CACHE_TTL) {
-      menuTree = menuTreeCache.data;
+    const cachedTree = getMenuTreeCache(menuIdsKey);
+    if (cachedTree) {
+      menuTree = cachedTree;
     } else {
       const menus = await db.menu.findMany({
         where: { id: { in: menuIds }, status: 1 },
@@ -93,7 +91,7 @@ export async function POST(request: Request) {
         orderBy: { sort: 'asc' },
       });
       menuTree = buildMenuTree(menus);
-      menuTreeCache = { data: menuTree, menuIdsKey, timestamp: Date.now() };
+      setMenuTreeCache(menuIdsKey, menuTree);
     }
 
     return NextResponse.json({

@@ -20,6 +20,7 @@ interface AppState {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   loadUserInfo: () => Promise<void>;
+  refreshMenus: () => Promise<void>;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setActiveMenu: (menuCode: string) => void;
@@ -89,9 +90,15 @@ export const useAppStore = create<AppState>()(
 
       // Load user info from API
       loadUserInfo: async () => {
+        const { currentUser } = get();
+        if (!currentUser) return;
         set({ userInfoLoading: true });
         try {
-          const res = await fetch('/api/auth/me');
+          const res = await fetch('/api/auth/current', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id }),
+          });
 
           if (!res.ok) {
             set({ userInfoLoading: false });
@@ -113,6 +120,29 @@ export const useAppStore = create<AppState>()(
           }
         } catch {
           set({ userInfoLoading: false });
+        }
+      },
+
+      // Refresh only menus (called after menu visibility/structure changes)
+      refreshMenus: async () => {
+        const { currentUser } = get();
+        if (!currentUser) return;
+        try {
+          const res = await fetch('/api/auth/current', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id }),
+          });
+
+          if (!res.ok) return;
+
+          const data = await res.json();
+          if (data.success && data.data) {
+            const { menus } = data.data;
+            set({ userMenus: menus ?? [] });
+          }
+        } catch {
+          // silently fail
         }
       },
 
