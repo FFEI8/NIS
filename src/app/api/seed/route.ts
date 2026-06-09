@@ -98,6 +98,8 @@ export async function POST() {
       { code: 'micro:lab:list', name: '微生物检验列表', type: 'menu', module: '感染监测' },
       { code: 'micro:lab:add', name: '新增微生物检验', type: 'button', module: '感染监测' },
       { code: 'micro:lab:import', name: '导入微生物数据', type: 'button', module: '感染监测' },
+      // HIS对接分析权限
+      { code: 'integration:his:view', name: 'HIS对接分析', type: 'menu', module: '系统集成' },
     ];
 
     const permissions = await db.permission.createMany({
@@ -128,6 +130,7 @@ export async function POST() {
       { name: '数据分析', code: 'data-analysis', icon: 'BarChart3', type: 'directory', sort: 3 },
       { name: '统计分析', code: 'data-statistics', path: '/data/statistics', icon: 'PieChart', type: 'menu', parentCode: 'data-analysis', sort: 0 },
       { name: '感染报告', code: 'data-report', path: '/data/reports', icon: 'FileSpreadsheet', type: 'menu', parentCode: 'data-analysis', sort: 1 },
+      { name: 'HIS对接分析', code: 'his-integration', path: '/integration/his-analysis', icon: 'GitMerge', type: 'menu', parentCode: 'data-analysis', sort: 2 },
       { name: '环境监测', code: 'env-monitor', icon: 'ShieldCheck', type: 'directory', sort: 4 },
       { name: '环境卫生', code: 'env-hygiene', path: '/env/hygiene', icon: 'Droplets', type: 'menu', parentCode: 'env-monitor', sort: 0 },
       { name: '消毒灭菌', code: 'env-sterilization', path: '/env/sterilization', icon: 'Flame', type: 'menu', parentCode: 'env-monitor', sort: 1 },
@@ -186,13 +189,14 @@ export async function POST() {
       p.code.startsWith('warning:') ||
       p.code.startsWith('micro:') ||
       p.code.startsWith('system:role:') ||
-      p.code.startsWith('system:menu:')
+      p.code.startsWith('system:menu:') ||
+      p.code.startsWith('integration:')
     ).map(p => p.id);
     await db.rolePermission.createMany({ data: infectionPermIds.map(pid => ({ roleId: infectionControl.id, permissionId: pid })) });
     const infectionMenuIds = allMenus.filter(m => [
       'dashboard', 'infection-monitor', 'infection-case', 'infection-warning', 'infection-warning-rules', 'micro-lab-results', 'infection-target',
       'infectious-disease', 'id-case-report', 'id-contact-tracing', 'id-symptom-surveillance', 'id-epidemic-dashboard', 'id-disease-alert',
-      'data-analysis', 'data-statistics', 'data-report',
+      'data-analysis', 'data-statistics', 'data-report', 'his-integration',
       'env-monitor', 'env-hygiene', 'env-sterilization',
       'occupational-safety', 'occupational-exposure', 'hand-hygiene', 'antibiotic',
     ].includes(m.code)).map(m => m.id);

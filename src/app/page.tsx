@@ -54,6 +54,7 @@ const EpidemicDashboardPage = dynamicPage(() => import('@/components/pages/epide
 const DiseaseAlertPage = dynamicPage(() => import('@/components/pages/disease-alert'));
 const WarningRulesPage = dynamicPage(() => import('@/components/pages/warning-rules'));
 const MicroLabResultsPage = dynamicPage(() => import('@/components/pages/micro-lab-results'));
+const HISIntegrationAnalysisPage = dynamicPage(() => import('@/components/pages/his-integration-analysis'));
 
 // ============ Content Router ============
 function ContentArea() {
@@ -82,6 +83,7 @@ function ContentArea() {
     'id-disease-alert': <DiseaseAlertPage />,
     'infection-warning-rules': <WarningRulesPage />,
     'micro-lab-results': <MicroLabResultsPage />,
+    'his-integration': <HISIntegrationAnalysisPage />,
   };
 
   return (
