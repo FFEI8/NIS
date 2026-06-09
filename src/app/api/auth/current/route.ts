@@ -5,10 +5,12 @@ import { getMenuTreeCache, setMenuTreeCache } from '@/lib/menu-cache';
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await request.json();
+    const body = await request.json();
+    const { userId, username } = body;
 
-    // Step 1: Find user with role IDs only
-    const user = await db.user.findUnique({
+    // Step 1: Find user by ID first, then fallback to username lookup
+    // This handles the case where database was re-seeded and CUID IDs changed
+    let user = userId ? await db.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -25,7 +27,30 @@ export async function POST(request: Request) {
           },
         },
       },
-    });
+    }) : null;
+
+    // Fallback: try to find user by username if ID lookup failed
+    // This allows session recovery when DB was re-seeded
+    if (!user && username) {
+      user = await db.user.findUnique({
+        where: { username },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          avatar: true,
+          phone: true,
+          email: true,
+          dept: true,
+          status: true,
+          roles: {
+            select: {
+              roleId: true,
+            },
+          },
+        },
+      });
+    }
 
     if (!user) {
       return NextResponse.json({ success: false, message: '用户不存在' }, { status: 404 });

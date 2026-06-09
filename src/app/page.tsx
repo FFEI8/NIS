@@ -96,9 +96,11 @@ function MainApp() {
   const refreshMenus = useAppStore(s => s.refreshMenus);
 
   useEffect(() => {
-    // On mount, re-fetch menus from API to sync with latest DB state
+    // On mount, re-fetch menus from API to sync with latest DB state.
     // This ensures sidebar reflects any menu visibility/structure changes
-    // that were made since the last page load (zustand persist may have stale data)
+    // that were made since the last page load (zustand persist may have stale data).
+    // The API also handles session recovery: if the userId is invalid (e.g. DB re-seeded),
+    // it falls back to username lookup, and if both fail, clears the session (forces re-login).
     refreshMenus();
   }, [refreshMenus]);
 

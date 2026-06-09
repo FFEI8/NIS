@@ -91,16 +91,30 @@ export const useAppStore = create<AppState>()(
       // Load user info from API
       loadUserInfo: async () => {
         const { currentUser } = get();
-        if (!currentUser) return;
+        if (!currentUser?.id && !currentUser?.username) return;
         set({ userInfoLoading: true });
         try {
           const res = await fetch('/api/auth/current', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id }),
+            body: JSON.stringify({
+              userId: currentUser.id,
+              username: currentUser.username,
+            }),
           });
 
           if (!res.ok) {
+            // If user not found (404), clear the session
+            if (res.status === 404) {
+              set({
+                currentUser: null,
+                userPermissions: [],
+                userMenus: [],
+                activeMenu: 'dashboard',
+                userInfoLoading: false,
+              });
+              return;
+            }
             set({ userInfoLoading: false });
             return;
           }
@@ -126,23 +140,41 @@ export const useAppStore = create<AppState>()(
       // Refresh only menus (called after menu visibility/structure changes or on page load)
       refreshMenus: async () => {
         const { currentUser } = get();
-        if (!currentUser?.id) return;
+        if (!currentUser?.id && !currentUser?.username) return;
         try {
           const res = await fetch('/api/auth/current', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id }),
+            body: JSON.stringify({
+              userId: currentUser.id,
+              username: currentUser.username, // Fallback: allows session recovery when DB was re-seeded
+            }),
           });
 
           if (!res.ok) {
+            // If user not found (404), the session is invalid - force logout
+            if (res.status === 404) {
+              console.warn('[refreshMenus] User not found in DB, clearing session');
+              set({
+                currentUser: null,
+                userPermissions: [],
+                userMenus: [],
+                activeMenu: 'dashboard',
+              });
+              return;
+            }
             console.warn('[refreshMenus] API returned status:', res.status);
             return;
           }
 
           const data = await res.json();
           if (data.success && data.data) {
-            const { menus } = data.data;
-            set({ userMenus: menus ?? [] });
+            const { user, menus } = data.data;
+            set({
+              // Update currentUser with latest data from DB (handles re-seed ID changes)
+              currentUser: user || currentUser,
+              userMenus: menus ?? [],
+            });
           } else {
             console.warn('[refreshMenus] API returned unsuccessful response:', data);
           }

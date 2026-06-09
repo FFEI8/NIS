@@ -640,3 +640,87 @@ Stage Summary:
 - Menu "隐藏/显示" toggle now works reliably for ALL menu items
 - Defense-in-depth approach: backend filters + frontend filters + cache bypass in dev mode
 - Full end-to-end testing with agent-browser confirms all scenarios work correctly
+
+---
+Task ID: 14
+Agent: Main Developer
+Task: Fix menu "隐藏" not taking effect - round 4 (CRITICAL root cause: refreshMenus 404)
+
+Work Log:
+- **User reports**: Menu "目标监测" still not hiding after 2 previous fixes. User asks if API needs restart.
+- **Systematic data flow analysis**: Traced the complete flow from user click → DB update → API call → Store update → Sidebar render
+- **Discovered CRITICAL root cause** in dev server logs:
+  ```
+  PUT /api/menus/{id} 200       ← DB update SUCCESS
+  POST /api/auth/current 404    ← refreshMenus() FAILED!
+  ```
+  The `refreshMenus()` function was returning 404, meaning the sidebar NEVER received the updated menu tree after hiding a menu.
+- **Why 404?**: The `/api/auth/current` endpoint looks up user by `userId` (CUID). When the database is re-seeded or reset, CUID IDs change. The `currentUser.id` stored in zustand persist (localStorage) becomes invalid. The API can't find the user → returns 404.
+- **Previous fixes were incomplete**: 
+  1. Round 1 (Task 11): Added `refreshMenus()` but it failed silently on 404
+  2. Round 2 (Task 12): Added `refreshMenus()` on MainApp mount, but it still failed silently on 404
+  3. Round 3 (Task 13): Added backend `visible` filter + cache fix, but `refreshMenus()` still returned 404 → sidebar still used stale localStorage data
+- **Applied 2 fixes**:
+  1. **Backend: `/api/auth/current` username fallback lookup**:
+     - Now accepts both `userId` and `username` in the request body
+     - If `userId` lookup fails (e.g., DB re-seeded), tries to find user by `username`
+     - This allows automatic session recovery when CUID IDs change
+  2. **Frontend: `refreshMenus()` and `loadUserInfo()` robustness**:
+     - Now sends `username` alongside `userId` as fallback
+     - On 404 response, clears the entire session (currentUser, userPermissions, userMenus) → forces re-login
+     - On success, updates `currentUser` with latest data from DB (handles ID changes)
+     - Added check `if (!currentUser?.id && !currentUser?.username) return`
+- **Verified with agent-browser end-to-end**:
+  1. Login as admin ✅
+  2. Navigate to menu management → hide "目标监测" → sidebar immediately removes it ✅
+  3. Page refresh → "目标监测" still hidden ✅
+  4. Show "目标监测" again → sidebar shows it ✅
+  5. Hide "目标监测" again → sidebar removes it ✅
+  6. Full page refresh → sidebar still correct ✅
+  7. Navigate to "疫情看板" → page renders correctly (no diseaseCategory error) ✅
+- Dev server logs show NO MORE 404 errors: `POST /api/auth/current 200 in 14ms`
+- Lint passes with 0 errors
+
+Stage Summary:
+- **Root cause**: `refreshMenus()` was returning 404 because `currentUser.id` (CUID) became invalid after DB re-seed, but the API had no fallback lookup mechanism
+- **2 fixes applied**: (1) username fallback lookup in `/api/auth/current`, (2) 404 session cleanup + username sending in frontend
+- This was the REAL reason menu hiding "never worked" - the sidebar refresh mechanism was fundamentally broken (404)
+- Previous 3 rounds of fixes addressed surface-level symptoms but missed the core issue: the API call that updates the sidebar was silently failing
+
+---
+## 项目当前状态描述/判断
+
+**状态**: 菜单隐藏功能已彻底修复，系统稳定
+
+### 核心Bug修复历史（菜单隐藏功能）
+| 轮次 | Task ID | 修复内容 | 结果 |
+|------|---------|----------|------|
+| 1 | 11 | 添加refreshMenus + 修复endpoint + 缓存失效 | 仍不生效 |
+| 2 | 12 | 添加页面加载时refreshMenus + zustand persist同步 | 仍不生效 |
+| 3 | 13 | 后端visible过滤 + 缓存隔离修复 + 前端过滤增强 | 仍不生效 |
+| **4** | **14** | **refreshMenus 404根因修复（username回退 + 404会话清理）** | **✅ 已修复** |
+
+### 当前系统包含：
+- **20个数据库模型** + **28个菜单项** + **60个权限项**
+- 菜单隐藏/显示功能完整可用（4层防御：后端过滤 + API回退查找 + 前端过滤 + 会话恢复）
+- 疫情看板页面正常（diseaseCategory错误已在之前的代码中修复）
+
+## 当前目标/已完成的修改/验证结果
+
+**本轮完成**:
+1. ✅ 诊断出refreshMenus 404是菜单隐藏不生效的根本原因
+2. ✅ `/api/auth/current` 添加username回退查找（处理DB重置后CUID变化）
+3. ✅ `refreshMenus()` 和 `loadUserInfo()` 添加username发送 + 404会话清理
+4. ✅ agent-browser端到端测试：隐藏→刷新→显示→刷新 全部通过
+5. ✅ 疫情看板页面正常渲染
+6. ✅ lint检查0 errors
+
+## 未解决问题或风险，建议下一阶段优先事项
+
+1. **菜单隐藏功能**: 已彻底修复，4层防御确保可靠性
+2. **建议增强**:
+   - 菜单排序拖拽功能
+   - 菜单图标选择器（当前需要手动输入图标名）
+   - 更多ECharts交互图表
+   - 移动端响应式优化
+3. **性能优化**: API分页缓存、前端组件懒加载
