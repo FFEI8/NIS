@@ -71,6 +71,28 @@ export default function Header() {
   const [showProfile, setShowProfile] = useState(false);
   const { dark, toggle } = useDarkMode();
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread notification count periodically
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            setUnreadCount(data.data.unreadCount || 0);
+          }
+        }
+      } catch {
+        // Silently fail - don't disrupt UI
+      }
+    };
+    fetchUnread();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchUnread, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -99,7 +121,11 @@ export default function Header() {
           <Button variant="ghost" size="icon" onClick={() => setShowNotifications(!showNotifications)}
             className="relative text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
             <Bell size={18} />
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">3</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold px-1">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </Button>
           {/* User dropdown */}
           <div className="relative" ref={userMenuRef}>
