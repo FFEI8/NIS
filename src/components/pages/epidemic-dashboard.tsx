@@ -40,7 +40,7 @@ export default function EpidemicDashboardPage() {
   const recentAlerts = stats.recentAlerts || [];
 
   const catMap: Record<string, number> = {};
-  casesByCategory.forEach((c: any) => { catMap[c.diseaseCategory] = c._count.diseaseCategory; });
+  casesByCategory.forEach((c: any) => { catMap[c.category] = c.count; });
 
   const statCards = [
     { label: '总病例数', value: overview.totalCases || 0, icon: <Biohazard size={22} />, color: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800' },
@@ -51,8 +51,8 @@ export default function EpidemicDashboardPage() {
     { label: '接触者追踪', value: overview.totalContacts || 0, icon: <UsersRound size={22} />, color: 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800' },
   ];
 
-  const maxMonthly = Math.max(...monthlyTrend.map((m: any) => m._count.id || 0), 1);
-  const maxDisease = Math.max(...casesByDisease.slice(0, 8).map((d: any) => d._count.diseaseName || 0), 1);
+  const maxMonthly = Math.max(...monthlyTrend.map((m: any) => m.count || 0), 1);
+  const maxDisease = Math.max(...casesByDisease.slice(0, 8).map((d: any) => d.count || 0), 1);
 
   return (
     <div className="space-y-6">
@@ -82,12 +82,12 @@ export default function EpidemicDashboardPage() {
           </h3>
           <div className="flex items-end gap-1 h-48">
             {monthlyTrend.slice(0, 12).map((m: any, i: number) => {
-              const height = Math.max((m._count.id / maxMonthly) * 100, 2);
+              const height = Math.max((m.count / maxMonthly) * 100, 2);
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">{m._count.id}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">{m.count}</span>
                   <div className="w-full bg-emerald-500 rounded-t transition-all duration-500 hover:bg-emerald-400" style={{ height: `${height}%` }} />
-                  <span className="text-[9px] text-slate-400 dark:text-slate-500">{String(m._month).slice(-2)}</span>
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500">{String(m.month).slice(-2)}</span>
                 </div>
               );
             })}
@@ -101,13 +101,13 @@ export default function EpidemicDashboardPage() {
           </h3>
           <div className="space-y-2.5">
             {casesByDisease.slice(0, 8).map((d: any, i: number) => {
-              const width = Math.max((d._count.diseaseName / maxDisease) * 100, 3);
+              const width = Math.max((d.count / maxDisease) * 100, 3);
               return (
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-slate-600 dark:text-slate-400 w-20 truncate text-right">{d.diseaseName}</span>
                   <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full h-5 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full transition-all duration-700 flex items-center justify-end pr-1.5" style={{ width: `${width}%` }}>
-                      <span className="text-[10px] text-white font-medium">{d._count.diseaseName}</span>
+                      <span className="text-[10px] text-white font-medium">{d.count}</span>
                     </div>
                   </div>
                 </div>
@@ -166,7 +166,7 @@ export default function EpidemicDashboardPage() {
                 {casesByDept.map((d: any, i: number) => (
                   <tr key={i} className="border-b border-slate-100 dark:border-slate-700/50">
                     <td className="py-2 text-slate-700 dark:text-slate-300">{d.dept}</td>
-                    <td className="py-2 text-right font-medium text-slate-800 dark:text-slate-200">{d._count.dept}</td>
+                    <td className="py-2 text-right font-medium text-slate-800 dark:text-slate-200">{d.count}</td>
                   </tr>
                 ))}
                 {casesByDept.length === 0 && <tr><td colSpan={2} className="py-4 text-center text-slate-400">暂无数据</td></tr>}
@@ -185,10 +185,10 @@ export default function EpidemicDashboardPage() {
                 '红色': '#ef4444', '橙色': '#f97316', '黄色': '#eab308', '蓝色': '#3b82f6',
               };
               return (
-                <div key={a.alertLevel} className="text-center">
-                  <CircularProgress value={(a._count.alertLevel / (overview.pendingAlerts || 1)) * 100} color={colors[a.alertLevel] || '#94a3b8'} size={56} />
-                  <div className="mt-2 text-xs font-medium" style={{ color: colors[a.alertLevel] || '#94a3b8' }}>{a.alertLevel}</div>
-                  <div className="text-lg font-bold text-slate-800 dark:text-slate-200">{a._count.alertLevel}</div>
+                <div key={a.level} className="text-center">
+                  <CircularProgress value={(a.count / (overview.pendingAlerts || 1)) * 100} color={colors[a.level] || '#94a3b8'} size={56} />
+                  <div className="mt-2 text-xs font-medium" style={{ color: colors[a.level] || '#94a3b8' }}>{a.level}</div>
+                  <div className="text-lg font-bold text-slate-800 dark:text-slate-200">{a.count}</div>
                 </div>
               );
             }) : <div className="text-center text-slate-400 py-8">暂无预警数据</div>}

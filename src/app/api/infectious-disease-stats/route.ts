@@ -106,6 +106,12 @@ export async function GET() {
     const pendingReviewCases = await db.infectiousDiseaseCase.count({ where: { status: '待审核' } });
     const reportedToCDC = await db.infectiousDiseaseCase.count({ where: { reportToCDC: 1 } });
 
+    // Recent alerts (last 10)
+    const recentAlerts = await db.diseaseAlert.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -176,6 +182,7 @@ export async function GET() {
           symptomGroup: item.symptomGroup,
           count: item._count.id,
         })),
+        recentAlerts,
       },
     });
   } catch (error: any) {
