@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       menuTree = cachedTree;
     } else {
       const menus = await db.menu.findMany({
-        where: { id: { in: menuIds }, status: 1 },
+        where: { id: { in: menuIds }, status: 1, visible: 1 },
         select: {
           id: true,
           parentId: true,
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         },
         orderBy: { sort: 'asc' },
       });
-      menuTree = buildMenuTree(menus);
+      menuTree = buildMenuTree(menus, true);
       setMenuTreeCache(menuIdsKey, menuTree);
     }
 

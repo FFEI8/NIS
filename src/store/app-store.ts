@@ -134,15 +134,20 @@ export const useAppStore = create<AppState>()(
             body: JSON.stringify({ userId: currentUser.id }),
           });
 
-          if (!res.ok) return;
+          if (!res.ok) {
+            console.warn('[refreshMenus] API returned status:', res.status);
+            return;
+          }
 
           const data = await res.json();
           if (data.success && data.data) {
             const { menus } = data.data;
             set({ userMenus: menus ?? [] });
+          } else {
+            console.warn('[refreshMenus] API returned unsuccessful response:', data);
           }
-        } catch {
-          // silently fail
+        } catch (err) {
+          console.warn('[refreshMenus] Failed to refresh menus:', err);
         }
       },
 

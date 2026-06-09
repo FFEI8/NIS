@@ -34,8 +34,28 @@ export default function Sidebar() {
     setTimeout(() => setAnimating(false), 300);
   };
 
+  /**
+   * Filter menus: only show visible and enabled items.
+   * Compute visibleChildren after filtering so directories with all-hidden children
+   * don't show an empty expandable section.
+   */
+  const filterVisibleMenus = (items: MenuItem[]): MenuItem[] => {
+    return items
+      .filter(m => m.visible === 1 && m.status === 1)
+      .map(m => {
+        if (m.children && m.children.length > 0) {
+          const visibleChildren = filterVisibleMenus(m.children);
+          return { ...m, children: visibleChildren };
+        }
+        return m;
+      })
+      .filter(m => m.type !== 'directory' || (m.children && m.children.length > 0));
+  };
+
+  const visibleMenus = filterVisibleMenus(userMenus);
+
   const renderMenuItems = (items: MenuItem[], depth = 0) => {
-    return items.filter(m => m.visible === 1 && m.status === 1).map(menu => {
+    return items.map(menu => {
       const isActive = activeMenu === menu.code;
       const isExpanded = expandedMenus.has(menu.code);
       const hasChildren = menu.children && menu.children.length > 0;
@@ -90,7 +110,7 @@ export default function Sidebar() {
         </button>
       </div>
       <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-        {renderMenuItems(userMenus)}
+        {renderMenuItems(visibleMenus)}
       </nav>
       {/* User info at bottom of sidebar */}
       {currentUser && !sidebarCollapsed && (

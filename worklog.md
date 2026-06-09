@@ -601,3 +601,42 @@ Stage Summary:
 - **Real root cause**: zustand persist hydration from localStorage overwrites API data on page load; no mechanism to re-sync menus from backend
 - **Fix**: `refreshMenus()` called on `MainApp` mount to sync store with DB state
 - Menu visibility now works correctly in all scenarios: toggle button, edit form, page refresh
+
+---
+Task ID: 13
+Agent: Main Developer
+Task: Deep investigation and fix for menu "隐藏" not taking effect in sidebar (round 3 - final fix)
+
+Work Log:
+- **Symptom**: User reports "感染病例" and "目标监测" menus still visible in sidebar after being set to "隐藏" in menu management
+- **Systematic investigation of the full data flow**:
+  1. Checked database → `visible=0` correctly stored for both menus ✅
+  2. Checked `/api/auth/current` endpoint → menu query `where: { id: { in: menuIds }, status: 1 }` does NOT filter by `visible: 1` ❌
+  3. Checked `buildMenuTree()` function → no visibility filtering ❌
+  4. Checked sidebar component → has `filter(m => m.visible === 1 && m.status === 1)` ✅
+  5. Checked dev server log → `POST /api/auth/current 404` appearing intermittently ❌
+  6. Checked menu-cache.ts → in-memory cache with invalidation support, BUT module isolation bug in Next.js dev mode ❌
+- **Identified 3 root causes**:
+  1. **Backend API missing `visible` filter**: Both `/api/auth/login` and `/api/auth/current` query menus with only `status: 1`, not `visible: 1`, returning hidden menus to the frontend
+  2. **Menu cache module isolation bug**: In Next.js dev mode (Turbopack), API routes are compiled as separate modules, each getting its own copy of `menu-cache.ts` variables. `invalidateMenuTreeCache()` called in PUT handler sets cache=null in its module instance, but the POST handler's module instance still has the old cached tree
+  3. **Stale localStorage data**: Zustand persist loads old `userMenus` from localStorage (with `visible: 1`) on page load, before `refreshMenus()` can update it
+- **Applied comprehensive fixes**:
+  1. **Backend `visible` filter**: Added `visible: 1` to Prisma `where` clause in both `/api/auth/login` and `/api/auth/current` routes
+  2. **`buildMenuTree` enhancement**: Added `filterVisible` parameter that pre-filters menus by `visible === 1` and prunes empty directories (directories with all children hidden)
+  3. **Menu cache dev mode fix**: Disabled in-memory cache in development mode (`if (isDev) return null`) to prevent stale cache from module isolation
+  4. **Sidebar `filterVisibleMenus`**: Added robust recursive filter function that filters by `visible === 1` AND `status === 1`, prunes empty directories, and computes visible children after filtering
+  5. **`refreshMenus` error logging**: Added `console.warn` for API errors instead of silently failing
+- **Verified with agent-browser end-to-end**:
+  1. "感染病例" hidden in DB → NOT in sidebar ✅
+  2. Click "显示" on "感染病例" → appears in sidebar ✅
+  3. Click "隐藏" on "感染病例" → disappears from sidebar ✅
+  4. Click "显示" on "目标监测" → appears in sidebar ✅
+  5. Click "隐藏" on "目标监测" → disappears from sidebar ✅
+  6. Page refresh after hiding → sidebar still shows correct state ✅
+- Lint passes with 0 errors
+
+Stage Summary:
+- **3 root causes identified and fixed** (backend filter, cache isolation, frontend robustness)
+- Menu "隐藏/显示" toggle now works reliably for ALL menu items
+- Defense-in-depth approach: backend filters + frontend filters + cache bypass in dev mode
+- Full end-to-end testing with agent-browser confirms all scenarios work correctly
