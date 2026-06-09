@@ -18,10 +18,10 @@ import { Siren, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
   const { getDictNames } = useConfigStore();
-  const alertTypeOptions = getDictNames('alert_type').length > 0 ? getDictNames('alert_type') : ['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'];
-  const alertLevelOptions = getDictNames('alert_level').length > 0 ? getDictNames('alert_level') : ['红色', '橙色', '黄色', '蓝色'];
-  const alertSourceOptions = getDictNames('alert_source').length > 0 ? getDictNames('alert_source') : ['病例上报', '症状监测', '系统自动', '人工上报'];
-  const alertStatusOptions = getDictNames('alert_status').length > 0 ? getDictNames('alert_status') : ['待处理', '处理中', '已处理', '已关闭'];
+  const alertTypeOptions = getDictNames('alert_type');
+  const alertLevelOptions = getDictNames('alert_level');
+  const alertSourceOptions = getDictNames('alert_source');
+  const alertStatusOptions = getDictNames('alert_status');
 
   const [form, setForm] = useState({
     alertType: item?.alertType || '法定传染病预警', alertLevel: item?.alertLevel || '黄色',
@@ -79,9 +79,9 @@ function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data
 
 export default function DiseaseAlertPage() {
   const { getDictNames } = useConfigStore();
-  const alertTypeOptions = getDictNames('alert_type').length > 0 ? getDictNames('alert_type') : ['法定传染病预警', '聚集性疫情预警', '症状监测预警', '输入性传染病预警'];
-  const alertLevelOptions = getDictNames('alert_level').length > 0 ? getDictNames('alert_level') : ['红色', '橙色', '黄色', '蓝色'];
-  const alertStatusOptions = getDictNames('alert_status').length > 0 ? getDictNames('alert_status') : ['待处理', '处理中', '已处理', '已关闭'];
+  const alertTypeOptions = getDictNames('alert_type');
+  const alertLevelOptions = getDictNames('alert_level');
+  const alertStatusOptions = getDictNames('alert_status');
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

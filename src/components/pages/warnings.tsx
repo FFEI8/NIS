@@ -11,9 +11,9 @@ import { AlertTriangle, Search } from 'lucide-react';
 
 export default function WarningsPage() {
   const { getDictNames } = useConfigStore();
-  const warningTypeOptions = getDictNames('warning_type').length > 0 ? getDictNames('warning_type') : ['病例预警', '聚集预警', '暴发预警'];
-  const warningStatusOptions = getDictNames('warning_status').length > 0 ? getDictNames('warning_status') : ['待处理', '已确认', '已排除', '已处理'];
-  const warningLevelOptions = getDictNames('warning_level').length > 0 ? getDictNames('warning_level') : ['高', '中', '低'];
+  const warningTypeOptions = getDictNames('warning_type');
+  const warningStatusOptions = getDictNames('warning_status');
+  const warningLevelOptions = getDictNames('warning_level');
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

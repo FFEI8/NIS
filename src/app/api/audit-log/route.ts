@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       filtered = filtered.filter(log => log.module === moduleFilter);
     }
     if (userFilter) {
-      filtered = filtered.filter(log => log.user.includes(user));
+      filtered = filtered.filter(log => log.user.includes(userFilter));
     }
 
     const total = filtered.length;

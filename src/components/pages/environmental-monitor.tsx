@@ -19,8 +19,8 @@ import { Droplets, Plus, Save, RefreshCw } from 'lucide-react';
 
 function EnvMonitorForm({ onSave, onClose }: { onSave: (data: any) => void; onClose: () => void }) {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames('临床').length > 0 ? getDeptNames('临床') : ['手术室', 'ICU', '产房', '新生儿室', '供应室', '治疗室'];
-  const sampleTypeOptions = getDictNames('sample_type').length > 0 ? getDictNames('sample_type') : ['空气', '物体表面', '医务人员手'];
+  const deptOptions = getDeptNames('临床');
+  const sampleTypeOptions = getDictNames('sample_type');
 
   const [form, setForm] = useState({ dept: '', samplePoint: '', sampleType: '空气', sampleDate: new Date().toISOString().slice(0, 10), colonyCount: '', standardLimit: '', result: '' });
   const [saving, setSaving] = useState(false);

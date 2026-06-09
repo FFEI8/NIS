@@ -19,9 +19,9 @@ import { Activity, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function InfectionCaseForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'];
-  const infectionSiteOptions = getDictNames('infection_site').length > 0 ? getDictNames('infection_site') : ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道'];
-  const statusOptions = getDictNames('infection_case_status').length > 0 ? getDictNames('infection_case_status') : ['待审核', '已确认', '已排除'];
+  const deptOptions = getDeptNames();
+  const infectionSiteOptions = getDictNames('infection_site');
+  const statusOptions = getDictNames('infection_case_status');
 
   const [form, setForm] = useState({
     patientId: item?.patientId || '', patientName: item?.patientName || '', gender: item?.gender || '男',
@@ -86,9 +86,9 @@ function InfectionCaseForm({ item, onSave, onClose }: { item?: any; onSave: (dat
 
 export default function InfectionCasesPage() {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '血液科', '肿瘤科'];
-  const infectionSiteOptions = getDictNames('infection_site').length > 0 ? getDictNames('infection_site') : ['手术部位', '呼吸道', '泌尿道', '血流', '皮肤软组织', '胃肠道', '中枢神经'];
-  const statusOptions = getDictNames('infection_case_status').length > 0 ? getDictNames('infection_case_status') : ['待审核', '已确认', '已排除'];
+  const deptOptions = getDeptNames();
+  const infectionSiteOptions = getDictNames('infection_site');
+  const statusOptions = getDictNames('infection_case_status');
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

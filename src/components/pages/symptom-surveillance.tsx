@@ -19,12 +19,12 @@ import { ScanSearch, Plus, Save, RefreshCw, Search } from 'lucide-react';
 
 function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'];
-  const symptomGroupOptions = getDictNames('symptom_group').length > 0 ? getDictNames('symptom_group') : ['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'];
-  const statusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['待核实', '已核实', '排除', '已预警'];
+  const deptOptions = getDeptNames();
+  const symptomGroupOptions = getDictNames('symptom_group');
+  const statusOptions = getDictNames('symptom_status');
 
   const [form, setForm] = useState({
-    dept: item?.dept || '内科', patientId: item?.patientId || '', patientName: item?.patientName || '',
+    dept: item?.dept || '', patientId: item?.patientId || '', patientName: item?.patientName || '',
     gender: item?.gender || '男', age: item?.age || '', temperature: item?.temperature || '',
     symptomGroup: item?.symptomGroup || '发热', symptomDetail: item?.symptomDetail || '',
     onsetDate: item?.onsetDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -86,9 +86,9 @@ function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave
 
 export default function SymptomSurveillancePage() {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科'];
-  const symptomGroupOptions = getDictNames('symptom_group').length > 0 ? getDictNames('symptom_group') : ['发热', '腹泻', '皮疹', '呼吸道', '神经系统', '出血热', '其他'];
-  const statusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['待核实', '已核实', '排除', '已预警'];
+  const deptOptions = getDeptNames();
+  const symptomGroupOptions = getDictNames('symptom_group');
+  const statusOptions = getDictNames('symptom_status');
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

@@ -39,7 +39,7 @@ export default function DashboardPage() {
     { label: '手卫生依从率', value: stats.handHygieneRate, suffix: '%', icon: <Hand size={22} />, color: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800', trend: '稳步提升', trendIcon: <TrendingUp size={12} /> },
     { label: '环境卫生合格率', value: stats.envHygieneRate, suffix: '%', icon: <ShieldCheck size={22} />, color: 'bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-800', trend: '达标', trendIcon: <CheckCircle2 size={12} /> },
     { label: '职业暴露事件', value: stats.exposureCount, icon: <HardHat size={22} />, color: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800', trend: '本年度累计', trendIcon: <ShieldAlert size={12} /> },
-    { label: '本月新增感染', value: stats.monthInfections, icon: <TrendingDown size={22} />, color: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800', trend: '同比-12%', trendIcon: <TrendingDown size={12} /> },
+    { label: '本月新增感染', value: stats.monthInfections, icon: <TrendingDown size={22} />, color: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800', trend: `累计${stats.monthInfections}例`, trendIcon: <TrendingDown size={12} /> },
   ];
 
   // Circular progress data

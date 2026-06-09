@@ -574,3 +574,84 @@ model TargetMonitoringItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ============ HIS对接配置模块 ============
+
+model HisBusinessScenario {
+  id          String   @id @default(cuid())
+  scenarioId  String   @unique // 场景标识（infection-case, infectious-disease 等）
+  name        String   // 场景名称
+  module      String   // 所属模块
+  hisSystem   String   // HIS系统来源
+  priority    String   @default("中") // 优先级：高/中/低
+  description String?  // 场景描述
+  sort        Int      @default(0)
+  status      Int      @default(1) // 1=启用 0=禁用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model HisFieldMapping {
+  id              String   @id @default(cuid())
+  scenarioId      String   // 关联场景ID
+  systemField     String   // 系统字段名
+  systemLabel     String   // 系统字段标签
+  dataType        String   // 数据类型：String/Int/Float/DateTime/Enum
+  length          Int      @default(50) // 字段长度
+  required        Int      @default(0) // 是否必填 0=否 1=是
+  hisField        String?  // HIS对应字段名
+  hisTable        String?  // HIS对应表名
+  transformRule   String?  // 转换规则描述
+  specialLogic    String?  // 特殊处理逻辑
+  validationRule  String?  // 校验规则
+  consistencyRisk String?  // 一致性风险说明
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([scenarioId, systemField])
+}
+
+model HisConversionRule {
+  id                  String   @id @default(cuid())
+  category            String   // 转换分类：日期格式转换/代码映射/数据类型转换/值域映射
+  sourceFormat        String   // 源格式描述
+  targetFormat        String   // 目标格式描述
+  conversionFunction  String?  // 转换函数/表达式
+  example             String?  // 转换示例
+  sort                Int      @default(0)
+  status              Int      @default(1) // 1=启用 0=禁用
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model HisValidationRule {
+  id              String   @id @default(cuid())
+  form            String   // 表单名称
+  field           String   // 字段名
+  ruleType        String   // 规则类型：required/range/cross-field/pattern
+  ruleDescription String   // 规则描述
+  errorMessage    String   // 错误提示信息
+  severity        String   @default("高") // 严重程度：高/中/低
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model HisConsistencyIssue {
+  id              String   @id @default(cuid())
+  scenarioId      String   // 关联场景ID
+  field           String   // 涉及字段
+  issueType       String   // 问题类型：数据缺失/格式不一致/编码不匹配/逻辑冲突/时效偏差
+  severity        String   @default("中") // 严重程度：高/中/低
+  description     String   // 问题描述
+  hisSystem       String?  // HIS系统
+  impactScope     String?  // 影响范围
+  suggestion      String?  // 改进建议
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

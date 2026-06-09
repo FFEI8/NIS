@@ -312,12 +312,9 @@ function TemperatureTrendChart({ trend, threshold }: { trend: Array<{ date: stri
   );
 }
 
-// Department list fallback
-const ALL_DEPTS_FALLBACK = ['ICU', '呼吸科', '神经外科', '肝胆外科', '骨科', '肿瘤科', '血液科', '肾内科', '心内科', '普外科'];
-
 export default function HISIntegrationAnalysisPage() {
   const { getDeptNames, getSystemConfig } = useConfigStore();
-  const ALL_DEPTS = getDeptNames().length > 0 ? getDeptNames() : ALL_DEPTS_FALLBACK;
+  const ALL_DEPTS = getDeptNames();
   const [data, setData] = useState<HISMappingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedScenario, setSelectedScenario] = useState('infection-case');

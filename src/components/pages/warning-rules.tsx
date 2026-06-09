@@ -53,13 +53,7 @@ const ACTION_LABELS: Record<string, { label: string; icon: React.ReactNode }> = 
   'block': { label: '阻断操作', icon: <Shield size={12} /> },
 };
 
-const MDRO_TYPE_OPTIONS_FALLBACK = [
-  { value: 'CRAB', label: 'CRAB - 鲍曼不动杆菌' },
-  { value: 'CRKP', label: 'CRKP - 肺炎克雷伯菌' },
-  { value: 'MRSA', label: 'MRSA - 金黄色葡萄球菌' },
-  { value: 'VRE', label: 'VRE - 屎肠球菌' },
-  { value: 'CRPA', label: 'CRPA - 铜绿假单胞菌' },
-];
+// MDRO type options are now sourced from useConfigStore().mdroRuleTemplates
 
 // ============ MDRO Quick Create Templates ============
 const MDRO_TEMPLATES: Record<string, {
@@ -402,14 +396,14 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则分类</label>
                 <select value={form.category} onChange={e => updateField('category', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {(useConfigStore.getState().getDictNames('rule_category').length > 0 ? useConfigStore.getState().getDictNames('rule_category') : ['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测', '多重耐药菌']).map(c => <option key={c} value={c}>{c}</option>)}
+                  {useConfigStore.getState().getDictNames('rule_category').map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则类型</label>
                 <select value={form.ruleType} onChange={e => updateField('ruleType', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {(useConfigStore.getState().getDictNames('rule_type').length > 0 ? useConfigStore.getState().getDictNames('rule_type') : ['阈值预警', '趋势预警', '聚集预警', '时效预警', '复合规则']).map(t => <option key={t} value={t}>{t}</option>)}
+                  {useConfigStore.getState().getDictNames('rule_type').map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
@@ -430,10 +424,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">监测菌种（多选，用逗号分隔）</label>
                 <div className="flex flex-wrap gap-2 p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700">
-                  {(useConfigStore.getState().mdroRuleTemplates.length > 0
-                    ? useConfigStore.getState().mdroRuleTemplates.map(t => ({ value: t.mdroType, label: `${t.mdroType} - ${t.bacteriaName}` }))
-                    : MDRO_TYPE_OPTIONS_FALLBACK
-                  ).map(opt => {
+                  {useConfigStore.getState().mdroRuleTemplates.map(t => ({ value: t.mdroType, label: `${t.mdroType} - ${t.bacteriaName}` })).map(opt => {
                     const isSelected = form.mdroTypes.split(',').filter(Boolean).includes(opt.value);
                     return (
                       <label key={opt.value} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
@@ -531,14 +522,14 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警级别</label>
                 <select value={form.warningLevel} onChange={e => updateField('warningLevel', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {(getDictNames('warning_level').length > 0 ? getDictNames('warning_level') : ['高', '中', '低']).map(l => <option key={l} value={l}>{l}</option>)}
+                  {getDictNames('warning_level').map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警类型</label>
                 <select value={form.warningType} onChange={e => updateField('warningType', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  {(getDictNames('warning_type').length > 0 ? getDictNames('warning_type') : ['病例预警', '聚集预警', '暴发预警', '环境预警', '职业暴露预警', 'MDRO预警']).map(t => <option key={t} value={t}>{t}</option>)}
+                  {getDictNames('warning_type').map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -745,8 +736,8 @@ export default function WarningRulesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const currentUser = useAppStore(s => s.currentUser);
   const { getDictNames } = useConfigStore();
-  const categoryOptions = getDictNames('rule_category').length > 0 ? getDictNames('rule_category') : ['感染监测', '传染病管理', '环境监测', '职业安全', '症状监测', '多重耐药菌'];
-  const ruleTypeOptions = getDictNames('rule_type').length > 0 ? getDictNames('rule_type') : ['阈值预警', '趋势预警', '聚集预警', '时效预警', '复合规则'];
+  const categoryOptions = getDictNames('rule_category');
+  const ruleTypeOptions = getDictNames('rule_type');
 
   const fetchData = useCallback(async () => {
     setLoading(true);

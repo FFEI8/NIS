@@ -19,13 +19,13 @@ import { UsersRound, Plus, Save, RefreshCw, Search, User, Biohazard, MapPin, Shi
 
 function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
   const { getDictNames } = useConfigStore();
-  const relationshipOptions = getDictNames('contact_relationship').length > 0 ? getDictNames('contact_relationship') : ['家属', '同事', '同病室', '医护', '其他'];
-  const contactTypeOptions = getDictNames('contact_type').length > 0 ? getDictNames('contact_type') : ['密切接触', '一般接触'];
-  const exposureLevelOptions = getDictNames('exposure_level').length > 0 ? getDictNames('exposure_level') : ['高', '中', '低'];
-  const symptomStatusOptions = getDictNames('symptom_status').length > 0 ? getDictNames('symptom_status') : ['无症状', '有症状', '已确诊'];
-  const quarantineTypeOptions = getDictNames('quarantine_type').length > 0 ? getDictNames('quarantine_type') : ['居家隔离', '集中隔离', '自我健康监测', '无需隔离'];
-  const testResultOptions = getDictNames('test_result').length > 0 ? getDictNames('test_result') : ['未检测', '阴性', '阳性'];
-  const followUpStatusOptions = getDictNames('follow_up_status').length > 0 ? getDictNames('follow_up_status') : ['待随访', '随访中', '已解除', '已转确诊'];
+  const relationshipOptions = getDictNames('contact_relationship');
+  const contactTypeOptions = getDictNames('contact_type');
+  const exposureLevelOptions = getDictNames('exposure_level');
+  const symptomStatusOptions = getDictNames('symptom_status');
+  const quarantineTypeOptions = getDictNames('quarantine_type');
+  const testResultOptions = getDictNames('test_result');
+  const followUpStatusOptions = getDictNames('follow_up_status');
 
   const [form, setForm] = useState({
     caseId: item?.caseId || '', casePatientName: item?.casePatientName || '',
@@ -125,10 +125,10 @@ function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (da
 
 export default function ContactTracingPage() {
   const { getDictNames } = useConfigStore();
-  const contactTypeOptions = getDictNames('contact_type').length > 0 ? getDictNames('contact_type') : ['密切接触', '一般接触'];
-  const statusOptions = getDictNames('contact_status').length > 0 ? getDictNames('contact_status') : ['待确认', '已确认', '已排除', '已解除'];
-  const followUpStatusOptions = getDictNames('follow_up_status').length > 0 ? getDictNames('follow_up_status') : ['待随访', '随访中', '已解除', '已转确诊'];
-  const exposureLevelOptions = getDictNames('exposure_level').length > 0 ? getDictNames('exposure_level') : ['高', '中', '低'];
+  const contactTypeOptions = getDictNames('contact_type');
+  const statusOptions = getDictNames('contact_status');
+  const followUpStatusOptions = getDictNames('follow_up_status');
+  const exposureLevelOptions = getDictNames('exposure_level');
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

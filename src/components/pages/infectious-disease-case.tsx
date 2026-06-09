@@ -31,17 +31,15 @@ export { CategoryBadge };
 function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSave: (data: any) => void; onClose: () => void }) {
   const { getDeptNames, getDictNames, diseaseCategories, getDiseaseCategory } = useConfigStore();
 
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'];
-  const statusOptions = getDictNames('id_case_status').length > 0 ? getDictNames('id_case_status') : ['待审核', '已审核', '退回', '已上报', '已结案'];
-  const severityOptions = getDictNames('id_case_severity').length > 0 ? getDictNames('id_case_severity') : ['轻症', '普通', '重症', '危重症'];
-  const reportTypeOptions = getDictNames('id_report_type').length > 0 ? getDictNames('id_report_type') : ['初次报告', '订正报告', '转归报告'];
-  const isolationTypeOptions = getDictNames('id_isolation_type').length > 0 ? getDictNames('id_isolation_type') : ['居家隔离', '集中隔离', '住院隔离', '无需隔离'];
-  const outcomeOptions = getDictNames('id_outcome').length > 0 ? getDictNames('id_outcome') : ['治愈', '好转', '未愈', '死亡', '其他'];
+  const deptOptions = getDeptNames();
+  const statusOptions = getDictNames('id_case_status');
+  const severityOptions = getDictNames('id_case_severity');
+  const reportTypeOptions = getDictNames('id_report_type');
+  const isolationTypeOptions = getDictNames('id_isolation_type');
+  const outcomeOptions = getDictNames('id_outcome');
 
   // Disease options from diseaseCategories
-  const diseaseOptions = diseaseCategories.length > 0
-    ? diseaseCategories.map(dc => dc.diseaseName)
-    : ['鼠疫', '霍乱', '新冠', '肺结核', '病毒性肝炎', '麻疹', '流感', '手足口病', '腮腺炎', '水痘'];
+  const diseaseOptions = diseaseCategories.map(dc => dc.diseaseName);
 
   const [form, setForm] = useState({
     patientId: item?.patientId || '', patientName: item?.patientName || '', gender: item?.gender || '男',
@@ -186,11 +184,9 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
 
 export default function InfectiousDiseaseCasePage() {
   const { getDeptNames, getDictNames, diseaseCategories } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科', '感染科', '呼吸科', '消化科'];
-  const statusOptions = getDictNames('id_case_status').length > 0 ? getDictNames('id_case_status') : ['待审核', '已审核', '退回', '已上报', '已结案'];
-  const categoryOptions = diseaseCategories.length > 0
-    ? [...new Set(diseaseCategories.map(dc => dc.category))]
-    : ['甲类', '乙类', '丙类', '其他'];
+  const deptOptions = getDeptNames();
+  const statusOptions = getDictNames('id_case_status');
+  const categoryOptions = [...new Set(diseaseCategories.map(dc => dc.category))];
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

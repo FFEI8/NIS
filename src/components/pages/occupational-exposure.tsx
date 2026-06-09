@@ -18,8 +18,8 @@ import { ShieldAlert, Plus, Upload, RefreshCw } from 'lucide-react';
 
 function ExposureForm({ onSave, onClose }: { onSave: (data: any) => void; onClose: () => void }) {
   const { getDeptNames, getDictNames } = useConfigStore();
-  const deptOptions = getDeptNames().length > 0 ? getDeptNames() : ['ICU', '外科', '内科', '儿科', '妇产科', '急诊科'];
-  const exposureTypeOptions = getDictNames('exposure_type').length > 0 ? getDictNames('exposure_type') : ['针刺伤', '血液体液暴露', '其他'];
+  const deptOptions = getDeptNames();
+  const exposureTypeOptions = getDictNames('exposure_type');
 
   const [form, setForm] = useState({ staffName: '', staffDept: '', exposureType: '针刺伤', exposurePart: '', exposureDate: new Date().toISOString().slice(0, 10), emergencyAction: '', riskLevel: '中' });
   const [saving, setSaving] = useState(false);

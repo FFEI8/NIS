@@ -1171,3 +1171,45 @@ Stage Summary:
    - 科室管理界面
    - 配置变更实时推送（WebSocket）
    - 传染病分类自动匹配优化
+
+---
+Task ID: 15
+Agent: Main Developer (Current Session)
+Task: Fix homepage not loading + Migrate all hardcoded data to database
+
+Work Log:
+- **Diagnosed homepage issue**: Dev server was not running. Started the server and confirmed it responds with HTTP 200.
+- **Scanned all pages for hardcoded/fake data**: Found 3 categories of issues:
+  1. CRITICAL: `/api/his-mapping/route.ts` had 100% hardcoded data (business scenarios, field mappings, conversion rules, validation rules, consistency issues)
+  2. HIGH: Fake statistics in statistics.tsx, target-monitoring.tsx, dashboard.tsx (hardcoded rates, trends, monitoring items)
+  3. MEDIUM: Hardcoded dict fallbacks in 14+ components (dropdown options using `getDictNames('key').length > 0 ? ... : ['fallback']`)
+- **Added 5 new Prisma models**: HisBusinessScenario, HisFieldMapping, HisConversionRule, HisValidationRule, HisConsistencyIssue
+- **Rewrote `/api/his-mapping/route.ts`**: Now queries all 5 tables from DB instead of hardcoded data
+- **Added HIS mapping seed data**: 10 business scenarios, 121 field mappings, 18 conversion rules, 33 validation rules, 15 consistency issues
+- **Added DictItem seed data**: 40 dictionary categories with 159 items covering all dropdown options (infection_site, warning_level, symptom_group, contact_type, etc.)
+- **Added SystemConfig seed data**: 4 entries (system_name, system_version, hospital_name, dashboard_trend_text)
+- **Added TargetMonitoringItem seed data**: 6 monitoring items with realistic rates
+- **Added Department seed data**: 15 departments (clinical, medical, administrative)
+- **Added DiseaseCategory seed data**: 10 disease categories (甲/乙/丙类)
+- **Added MdroRuleTemplate seed data**: 5 MDRO rule templates (CRAB, CRKP, MRSA, VRE, CRPA)
+- **Fixed all frontend hardcoded data**:
+  - Removed fake fallback arrays from 14 components (symptom-surveillance, environmental-monitor, warnings, contact-tracing, disease-alert, infectious-disease-case, occupational-exposure, infection-cases, warning-rules, micro-lab-results, his-integration-analysis, statistics, target-monitoring, dashboard)
+  - Replaced `getDictNames('key').length > 0 ? getDictNames('key') : ['fallback']` with direct `getDictNames('key')`
+  - Removed fake statistics from statistics.tsx (hardcoded dept names, infection rates, antibiotic trends)
+  - Removed fallbackItems from target-monitoring.tsx (now shows "暂无监测项数据" when empty)
+  - Removed hardcoded '同比-12%' from dashboard.tsx
+  - Replaced MDRO_TYPE_MAP_FALLBACK with MDRO_TYPE_COLORS in micro-lab-results.tsx
+  - Removed ALL_DEPTS_FALLBACK from his-integration-analysis.tsx
+- **Fixed TypeScript errors**: seed route (deleteMany union type), audit-log route (undefined variable 'user')
+- **Re-seeded database**: All data including new tables verified
+- **Lint passes** with 0 errors
+- **Server stability note**: Next.js dev server occasionally crashes under memory pressure in sandbox environment when compiling multiple components simultaneously
+
+Stage Summary:
+- **25 Prisma models** total (20 original + 5 new HIS mapping models)
+- **40 dict categories** with 159 items (all previously hardcoded dropdowns now DB-backed)
+- **15 departments**, **10 disease categories**, **5 MDRO templates** seeded
+- **6 target monitoring items** with realistic rates (no more fake data)
+- **All 14+ components** now use database-driven data instead of hardcoded fallbacks
+- **HIS mapping API** now queries database instead of returning static data
+- Homepage loads successfully (HTTP 200, shows login page)

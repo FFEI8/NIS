@@ -17,50 +17,33 @@ import {
   Eye, FileUp, Play, Bug, TrendingUp, Activity, ShieldAlert,
 } from 'lucide-react';
 
-// ============ MDRO Type Mapping ============
-const MDRO_TYPE_MAP_FALLBACK: Record<string, { label: string; fullName: string; color: string }> = {
-  'CRAB': { label: 'CRAB', fullName: '耐碳青霉烯类鲍曼不动杆菌', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
-  'CRKP': { label: 'CRKP', fullName: '耐碳青霉烯类肺炎克雷伯菌', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
-  'MRSA': { label: 'MRSA', fullName: '耐甲氧西林金黄色葡萄球菌', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-  'VRE': { label: 'VRE', fullName: '耐万古霉素屎肠球菌', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  'CRPA': { label: 'CRPA', fullName: '耐碳青霉烯类铜绿假单胞菌', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
-};
-
-const SPECIMEN_TYPE_MAP_FALLBACK: Record<string, { label: string; color: string }> = {
-  '痰液': { label: '痰液', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  '尿液': { label: '尿液', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
-  '血液': { label: '血液', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  '分泌物': { label: '分泌物', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-  '肺泡灌洗液': { label: '肺泡灌洗液', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  '血清': { label: '血清', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+// ============ MDRO Type color mapping ============
+const MDRO_TYPE_COLORS: Record<string, string> = {
+  'CRAB': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  'CRKP': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  'MRSA': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  'VRE': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  'CRPA': 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
 };
 
 // ============ MDRO Badge ============
 function MDROBadge({ mdroType }: { mdroType: string }) {
-  const info = useConfigStore.getState().mdroRuleTemplates.length > 0
-    ? (() => {
-        const tpl = useConfigStore.getState().mdroRuleTemplates.find(t => t.mdroType === mdroType);
-        return tpl ? { label: tpl.mdroType, fullName: tpl.bacteriaName, color: MDRO_TYPE_MAP_FALLBACK[mdroType]?.color || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' } : null;
-      })()
-    : MDRO_TYPE_MAP_FALLBACK[mdroType];
-  if (!info) return <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">{mdroType}</Badge>;
+  const tpl = useConfigStore.getState().mdroRuleTemplates.find(t => t.mdroType === mdroType);
+  const color = MDRO_TYPE_COLORS[mdroType] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
+  if (!tpl) return <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">{mdroType}</Badge>;
   return (
-    <Badge className={`${info.color} text-[10px] font-medium gap-0.5`}>
-      {info.fullName}[{info.label}]
+    <Badge className={`${color} text-[10px] font-medium gap-0.5`}>
+      {tpl.bacteriaName}[{tpl.mdroType}]
     </Badge>
   );
 }
 
 // ============ Specimen Badge ============
 function SpecimenBadge({ type }: { type: string }) {
-  const info = useConfigStore.getState().getDictItems('specimen_type').length > 0
-    ? (() => {
-        const item = useConfigStore.getState().getDictItems('specimen_type').find(d => d.name === type);
-        return item ? { label: item.name, color: item.color || SPECIMEN_TYPE_MAP_FALLBACK[type]?.color || 'bg-slate-100 text-slate-600' } : null;
-      })()
-    : SPECIMEN_TYPE_MAP_FALLBACK[type];
-  if (!info) return <Badge variant="outline" className="text-[10px]">{type}</Badge>;
-  return <Badge className={`${info.color} text-[10px]`}>{info.label}</Badge>;
+  const item = useConfigStore.getState().getDictItems('specimen_type').find(d => d.name === type);
+  const color = item?.color || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
+  if (!item) return <Badge variant="outline" className="text-[10px]">{type}</Badge>;
+  return <Badge className={`${color} text-[10px]`}>{item.name}</Badge>;
 }
 
 // ============ Detail Dialog ============
@@ -183,10 +166,8 @@ function LabResultDetailDialog({ open, onClose, item }: { open: boolean; onClose
 // ============ Main Page ============
 export default function MicroLabResultsPage() {
   const { getDictNames, mdroRuleTemplates } = useConfigStore();
-  const specimenOptions = getDictNames('specimen_type').length > 0 ? getDictNames('specimen_type') : ['痰液', '尿液', '血液', '分泌物', '肺泡灌洗液', '血清'];
-  const mdroTypeMap = mdroRuleTemplates.length > 0
-    ? Object.fromEntries(mdroRuleTemplates.map(t => [t.mdroType, { label: t.mdroType, fullName: t.bacteriaName, color: MDRO_TYPE_MAP_FALLBACK[t.mdroType]?.color || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' }]))
-    : MDRO_TYPE_MAP_FALLBACK;
+  const specimenOptions = getDictNames('specimen_type');
+  const mdroTypeMap = Object.fromEntries(mdroRuleTemplates.map(t => [t.mdroType, { label: t.mdroType, fullName: t.bacteriaName, color: MDRO_TYPE_COLORS[t.mdroType] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' }]));
 
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
