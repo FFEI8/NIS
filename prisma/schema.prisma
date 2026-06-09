@@ -655,3 +655,98 @@ model HisConsistencyIssue {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ============ 传染病检验数据模块 ============
+
+model InfectiousDiseaseLabResult {
+  id                      String   @id @default(cuid())
+  testId                  String?  // 检验ID（LIS系统编号）
+  patientId               String   // 患者ID（HIS住院号/门诊号）
+  patientName             String?  // 患者姓名
+  gender                  String?  // 性别
+  age                     Int?     // 年龄
+  visitId                 String?  // 住院号/就诊号
+  orderNo                 String?  // 医嘱号
+  dept                    String?  // 科室
+  bedNo                   String?  // 床号
+  specimenType            String?  // 标本类型：血清/全血/咽拭子/痰液/粪便等
+  specimenNo              String?  // 标本编号
+  collectTime             DateTime? // 采集时间
+  receiveTime             DateTime? // 接收时间
+  reportTime              DateTime? // 报告时间
+  // 检验项目信息
+  testItemCode            String   // 检验项目编码（如 jyxx2351）
+  testItemName            String   // 检验项目名称（如 乙型肝炎病毒表面抗原（HBsAg））
+  resultValue             String?  // 结果值（阳性/阴性/HIV感染待确定/培养出淋球菌奈瑟氏菌生长 等）
+  resultText              String?  // 结果文本描述
+  unit                    String?  // 单位
+  referenceRange          String?  // 参考范围
+  isAbnormal              Int      @default(0) // 是否异常 0=否 1=是
+  isPositive              Int      @default(0) // 是否阳性 0=否 1=是
+  // 关联传染病信息
+  diseaseName             String?  // 关联传染病名称（如 病毒性肝炎、艾滋病 等）
+  diseaseCategory         String?  // 传染病分类：甲类/乙类/丙类/其他
+  isNotifiable            Int      @default(0) // 是否法定报告传染病 0=否 1=是
+  reportTimeLimit         Int?     // 法定报告时限（小时）
+  // HIS来源信息
+  hisTestCode             String?  // HIS检验项目代码
+  hisTestName             String?  // HIS检验项目名称
+  hisSubItemNo            Int?     // HIS组合项目中的子项序号
+  hisSource               String   @default("HIS自动推送") // 数据来源：HIS自动推送/检验录入/设备采集
+  // 预警与上报
+  autoReported            Int      @default(0) // 是否已自动上报传染病 0=否 1=是
+  infectiousDiseaseCaseId String?  // 自动创建的传染病病例ID
+  warningTriggered        Int      @default(0) // 是否已触发预警 0=否 1=是
+  warningId               String?  // 关联预警ID
+  diseaseAlertId          String?  // 关联传染病预警ID
+  // 操作信息
+  instrument              String?  // 检测仪器
+  operator                String?  // 操作者/报告人
+  reviewer                String?  // 审核人
+  remarks                 String?  // 备注
+  status                  String   @default("已审核") // 待审核/已审核/退回
+  // 同步信息
+  syncStatus              String   @default("已同步") // 同步状态：已同步/待同步/同步失败
+  syncTime                DateTime? // 同步时间
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model InfectiousDiseaseTestItem {
+  id              String   @id @default(cuid())
+  testItemCode    String   @unique // 检验项目编码（如 jyxx2351）
+  testItemName    String   // 检验项目名称（如 乙型肝炎病毒表面抗原（HBsAg））
+  positiveResult  String   // 阳性判定结果值（如 阳性/HIV感染待确定/培养出淋球菌奈瑟氏菌生长）
+  diseaseName     String   // 关联传染病名称
+  diseaseCode     String?  // ICD-10编码
+  diseaseCategory String   // 传染病分类：甲类/乙类/丙类/其他
+  isNotifiable    Int      @default(1) // 是否法定报告 0=否 1=是
+  reportTimeLimit Int?     // 法定报告时限（小时）
+  isolationType   String?  // 隔离类型
+  testMethod      String?  // 检测方法：血清学/核酸检测/抗原检测/培养/涂片
+  specimenTypes   String?  // 适用标本类型（逗号分隔）
+  warningLevel    String   @default("中") // 推荐预警级别：高/中/低
+  riskNote        String?  // 风险提示
+  sort            Int      @default(0)
+  status          Int      @default(1) // 1=启用 0=禁用
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model HisInfectiousDiseaseTestMapping {
+  id                  String   @id @default(cuid())
+  hisTestCode         String   // HIS检验项目代码（组合项目代码）
+  hisTestName         String   // HIS检验项目名称（组合项目名称）
+  subItemNo           Int      @default(1) // 组合项目中的子项序号
+  testItemCode        String   // 系统检验项目编码（关联InfectiousDiseaseTestItem）
+  testItemName        String   // 系统检验项目名称
+  transformRule       String?  // 转换规则描述
+  specialLogic        String?  // 特殊处理逻辑
+  consistencyRisk     String?  // 一致性风险说明
+  sort                Int      @default(0)
+  status              Int      @default(1) // 1=启用 0=禁用
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([hisTestCode, subItemNo, testItemCode])
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { generateInfectiousDiseaseWarningRules } from '@/lib/infectious-disease-warning-rules';
 
 const R = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -21,6 +22,8 @@ export async function POST() {
       db.hisConversionRule.deleteMany(), db.hisValidationRule.deleteMany(), db.hisConsistencyIssue.deleteMany(),
       db.dictItem.deleteMany(), db.systemConfig.deleteMany(), db.targetMonitoringItem.deleteMany(),
       db.department.deleteMany(), db.diseaseCategory.deleteMany(), db.mdroRuleTemplate.deleteMany(),
+      db.infectiousDiseaseLabResult.deleteMany(), db.infectiousDiseaseTestItem.deleteMany(),
+      db.hisInfectiousDiseaseTestMapping.deleteMany(),
       db.user.deleteMany(), db.role.deleteMany(), db.permission.deleteMany(), db.menu.deleteMany(),
     ]);
 
@@ -771,6 +774,47 @@ export async function POST() {
       { title: '抗菌药物使用率监测', description: '监测住院患者抗菌药物使用率', icon: 'Pill', targetRate: 60.0, currentRate: 45.2, rateUnit: '%', category: '抗菌药物', sort: 4, status: 1 },
       { title: '手卫生依从性监测', description: '监测医务人员手卫生依从率', icon: 'Hand', targetRate: 95.0, currentRate: 82.5, rateUnit: '%', category: '手卫生', sort: 5, status: 1 },
     ] });
+
+    // === 传染病检验数据初始化 ===
+    await generateInfectiousDiseaseWarningRules();
+
+    // 传染病检验结果样例数据
+    const idLabDepts = ['感染科','内科','外科','ICU','儿科','呼吸科','妇产科','急诊科'];
+    const idLabItems = [
+      { code: 'jyxx2351', name: '乙型肝炎病毒表面抗原（HBsAg）', result: '阳性', disease: '病毒性肝炎', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx2095', name: '人免疫缺陷病毒抗体(HIV-Ab)', result: 'HIV感染待确定', disease: '艾滋病', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx11874', name: '新型冠状病毒（2019-nCoV）抗原检测', result: '阳性', disease: '新型冠状病毒感染', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx975', name: '梅毒螺旋体抗体(Anti-TP)', result: '阳性', disease: '梅毒', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx841', name: '甲型流感病毒抗原', result: '阳性', disease: '流行性感冒', cat: '丙类', notifiable: 1 },
+      { code: 'jyxx488', name: '淋球菌培养', result: '培养出淋球菌奈瑟氏菌生长', disease: '淋病', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx1464', name: '甲型肝炎病毒抗体IgM(A)', result: '阳性', disease: '病毒性肝炎', cat: '乙类', notifiable: 1 },
+      { code: 'jyxx2136', name: '丙型肝炎病毒抗体(Anti-HCV)', result: '阳性', disease: '病毒性肝炎', cat: '乙类', notifiable: 1 },
+    ];
+    await db.infectiousDiseaseLabResult.createMany({ data: idLabItems.map((item, i) => ({
+      patientId: `IDL${String(20250001 + i).padStart(8, '0')}`,
+      patientName: `检验患者${i + 1}`,
+      gender: i % 2 === 0 ? '男' : '女',
+      age: 25 + i * 8,
+      dept: idLabDepts[i % idLabDepts.length],
+      bedNo: `B-${String(i + 1).padStart(3, '0')}`,
+      specimenType: ['血清', '全血', '咽拭子', '血清', '咽拭子', '分泌物', '血清', '血清'][i],
+      testItemCode: item.code,
+      testItemName: item.name,
+      resultValue: item.result,
+      isAbnormal: 1,
+      isPositive: 1,
+      diseaseName: item.disease,
+      diseaseCategory: item.cat,
+      isNotifiable: item.notifiable,
+      reportTimeLimit: item.cat === '甲类' ? 2 : 24,
+      hisSource: 'HIS自动推送',
+      warningTriggered: i < 4 ? 1 : 0,
+      operator: zl.name,
+      reviewer: gk.name,
+      status: '已审核',
+      syncStatus: '已同步',
+      syncTime: new Date(),
+    })) });
 
     return NextResponse.json({ success: true, message: '数据库初始化成功', data: { users: 5, roles: 3, permissions: permissionDefs.length, menus: menuDefs.length } });
   } catch (error: any) {

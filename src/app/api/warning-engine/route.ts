@@ -57,13 +57,16 @@ export async function POST(request: Request) {
                 ruleId: rule.id,
                 ruleName: rule.name,
                 ruleCode: rule.code,
-                triggerSource: triggered.sourceType === 'micro_lab' ? 'micro_lab' : 'warning_engine',
+                triggerSource: triggered.sourceType === 'micro_lab' ? 'micro_lab' : triggered.sourceType === 'id_lab' ? 'id_lab' : 'warning_engine',
                 sourceId: triggered.sourceId || triggered.matchedRecords?.[0]?.sourceId,
                 sourceType: triggered.sourceType,
                 sourceDetail: JSON.stringify(triggered.matchedRecords?.map((r: any) => ({
                   patientId: r.patientId,
                   dept: r.dept,
                   reportItemName: r.reportItemName,
+                  testItemName: r.testItemName,
+                  diseaseName: r.diseaseName,
+                  diseaseCategory: r.diseaseCategory,
                 })) || {}),
                 patientId: triggered.patientId || triggered.matchedRecords?.[0]?.patientId,
                 dept: triggered.dept || triggered.matchedRecords?.[0]?.dept,
@@ -93,6 +96,14 @@ export async function POST(request: Request) {
                     });
                   } catch { /* already updated */ }
                 }
+                if (match.sourceId && match.sourceType === 'id_lab') {
+                  try {
+                    await db.infectiousDiseaseLabResult.update({
+                      where: { id: match.sourceId },
+                      data: { warningTriggered: 1 },
+                    });
+                  } catch { /* already updated */ }
+                }
               }
             } else if (triggered.sourceType === 'micro_lab' && triggered.sourceId) {
               try {
@@ -104,6 +115,13 @@ export async function POST(request: Request) {
             } else if (triggered.sourceType === 'temperature' && triggered.sourceId) {
               try {
                 await db.temperatureRecord.update({
+                  where: { id: triggered.sourceId },
+                  data: { warningTriggered: 1 },
+                });
+              } catch { /* already updated */ }
+            } else if (triggered.sourceType === 'id_lab' && triggered.sourceId) {
+              try {
+                await db.infectiousDiseaseLabResult.update({
                   where: { id: triggered.sourceId },
                   data: { warningTriggered: 1 },
                 });
@@ -418,6 +436,334 @@ async function evaluateRule(rule: any): Promise<any | null> {
         return null;
       }
 
+      case 'idLabPositive': {
+        // Infectious disease lab positive detection
+        // When operator is 'contains': search InfectiousDiseaseLabResult where isPositive=1 AND testItemName contains conditionValue
+        if (conditionOperator === 'contains') {
+          const testName = conditionValue;
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              testItemName: { contains: testName },
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+          });
+
+          if (idLabResults.length > 0) {
+            const matchedRecords = idLabResults.map(r => ({
+              patientId: r.patientId,
+              patientName: r.patientName,
+              dept: r.dept,
+              sourceId: r.id,
+              sourceType: 'id_lab',
+              testItemName: r.testItemName,
+              resultValue: r.resultValue,
+              diseaseName: r.diseaseName,
+              diseaseCategory: r.diseaseCategory,
+              description: `检出${r.testItemName}(${r.resultValue || '阳性'})${r.diseaseName ? '，关联传染病：' + r.diseaseName : ''}`,
+            }));
+
+            return {
+              patientId: idLabResults[0]?.patientId || '',
+              patientName: idLabResults[0]?.patientName || '',
+              dept: idLabResults[0]?.dept || '',
+              sourceId: idLabResults[0]?.id || '',
+              sourceType: 'id_lab',
+              description: `${timeWindow}小时内${testName}阳性检出${idLabResults.length}例`,
+              matchCount: idLabResults.length,
+              matchedRecords,
+            };
+          }
+          return null;
+        }
+
+        // When operator is 'gt'/'gte': count positive results and compare with threshold
+        const positiveCount = await db.infectiousDiseaseLabResult.count({
+          where: {
+            isPositive: 1,
+            reportTime: { gte: windowStart },
+            ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            ...(conditionOperator === 'contains' ? { testItemName: { contains: conditionValue } } : {}),
+          },
+        });
+
+        const threshold = parseInt(conditionValue) || 1;
+        if (compareValue(positiveCount, conditionOperator, threshold)) {
+          // Fetch the matching records for detail
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+
+          const matchedRecords = idLabResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName,
+            dept: r.dept,
+            sourceId: r.id,
+            sourceType: 'id_lab',
+            testItemName: r.testItemName,
+            resultValue: r.resultValue,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+            description: `检出${r.testItemName}(${r.resultValue || '阳性'})`,
+          }));
+
+          return {
+            patientId: idLabResults[0]?.patientId || '',
+            patientName: idLabResults[0]?.patientName || '',
+            dept: idLabResults[0]?.dept || '',
+            sourceId: idLabResults[0]?.id || '',
+            sourceType: 'id_lab',
+            description: `${timeWindow}小时内传染病检验阳性${positiveCount}例（阈值${threshold}）`,
+            matchCount: positiveCount,
+            matchedRecords,
+          };
+        }
+        return null;
+      }
+
+      case 'idLabCount': {
+        // Infectious disease lab result count (for cluster detection)
+        // Build filter - optionally filter by targetDiseases (match diseaseName)
+        const targetDiseaseList = rule.targetDiseases
+          ? rule.targetDiseases.split(',').map((d: string) => d.trim()).filter(Boolean)
+          : [];
+
+        const baseWhere = {
+          reportTime: { gte: windowStart },
+          ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+          ...(targetDiseaseList.length > 0 ? { diseaseName: { in: targetDiseaseList } } : {}),
+        };
+
+        // For cluster rules, check per-department counts
+        if (rule.ruleType === '聚集预警') {
+          const deptCounts = await db.infectiousDiseaseLabResult.groupBy({
+            by: ['dept'],
+            where: {
+              ...baseWhere,
+              dept: { not: null },
+            },
+            _count: true,
+          });
+
+          const threshold = parseInt(conditionValue) || 3;
+          for (const dc of deptCounts) {
+            if (compareValue(dc._count, conditionOperator, threshold)) {
+              // Get the matching records for this department
+              const deptResults = await db.infectiousDiseaseLabResult.findMany({
+                where: {
+                  ...baseWhere,
+                  dept: dc.dept,
+                },
+                orderBy: { reportTime: 'desc' },
+              });
+
+              const matchedRecords = deptResults.map(r => ({
+                patientId: r.patientId,
+                patientName: r.patientName,
+                dept: r.dept,
+                sourceId: r.id,
+                sourceType: 'id_lab',
+                testItemName: r.testItemName,
+                resultValue: r.resultValue,
+                diseaseName: r.diseaseName,
+                diseaseCategory: r.diseaseCategory,
+                description: `${r.testItemName}(${r.resultValue || '阳性'})`,
+              }));
+
+              return {
+                patientId: '',
+                dept: dc.dept || '',
+                sourceType: 'id_lab',
+                description: `${dc.dept}科室${timeWindow}小时内传染病检验${dc._count}例（阈值${threshold}），存在聚集风险`,
+                matchCount: dc._count,
+                matchedRecords,
+              };
+            }
+          }
+          return null;
+        }
+
+        // Numeric count threshold (non-cluster)
+        const totalCount = await db.infectiousDiseaseLabResult.count({ where: baseWhere });
+        const threshold = parseInt(conditionValue) || 1;
+
+        if (compareValue(totalCount, conditionOperator, threshold)) {
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: baseWhere,
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+
+          const matchedRecords = idLabResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName,
+            dept: r.dept,
+            sourceId: r.id,
+            sourceType: 'id_lab',
+            testItemName: r.testItemName,
+            resultValue: r.resultValue,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+            description: `${r.testItemName}(${r.resultValue || '阳性'})`,
+          }));
+
+          return {
+            patientId: '',
+            dept: rule.targetDepts || '',
+            sourceType: 'id_lab',
+            description: `${timeWindow}小时内传染病检验${totalCount}例（阈值${threshold}）`,
+            matchCount: totalCount,
+            matchedRecords,
+          };
+        }
+        return null;
+      }
+
+      case 'notifiableDisease': {
+        // Notifiable disease detection (for timeliness rules)
+        // When operator is 'eq' and value is '甲类': Find positive results where diseaseCategory='甲类'
+        if (conditionOperator === 'eq' && conditionValue === '甲类') {
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              diseaseCategory: '甲类',
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+          });
+
+          if (idLabResults.length > 0) {
+            const matchedRecords = idLabResults.map(r => ({
+              patientId: r.patientId,
+              patientName: r.patientName,
+              dept: r.dept,
+              sourceId: r.id,
+              sourceType: 'id_lab',
+              testItemName: r.testItemName,
+              resultValue: r.resultValue,
+              diseaseName: r.diseaseName,
+              diseaseCategory: r.diseaseCategory,
+              urgency: '甲类',
+              reportTimeLimit: r.reportTimeLimit,
+              description: `甲类传染病：${r.diseaseName || r.testItemName}(${r.resultValue || '阳性'})，需${r.reportTimeLimit || 2}小时内报告`,
+            }));
+
+            return {
+              patientId: idLabResults[0]?.patientId || '',
+              patientName: idLabResults[0]?.patientName || '',
+              dept: idLabResults[0]?.dept || '',
+              sourceId: idLabResults[0]?.id || '',
+              sourceType: 'id_lab',
+              description: `${timeWindow}小时内检出甲类传染病${idLabResults.length}例，需立即报告`,
+              matchCount: idLabResults.length,
+              matchedRecords,
+            };
+          }
+          return null;
+        }
+
+        // When operator is 'timeout' and value is '乙类': Find positive results where diseaseCategory='乙类'
+        // and autoReported=0 and created more than timeWindow hours ago
+        if (conditionOperator === 'timeout' && conditionValue === '乙类') {
+          const timeoutDate = new Date(now.getTime() - windowMs);
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              diseaseCategory: '乙类',
+              autoReported: 0,
+              createdAt: { lte: timeoutDate },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          if (idLabResults.length > 0) {
+            const matchedRecords = idLabResults.map(r => {
+              const createdTime = new Date(r.createdAt).getTime();
+              const elapsedHours = Math.round((now.getTime() - createdTime) / (60 * 60 * 1000));
+              const timeLimit = r.reportTimeLimit || 24;
+              return {
+                patientId: r.patientId,
+                patientName: r.patientName,
+                dept: r.dept,
+                sourceId: r.id,
+                sourceType: 'id_lab',
+                testItemName: r.testItemName,
+                resultValue: r.resultValue,
+                diseaseName: r.diseaseName,
+                diseaseCategory: r.diseaseCategory,
+                urgency: '乙类',
+                reportTimeLimit: timeLimit,
+                elapsedHours,
+                description: `乙类传染病超时：${r.diseaseName || r.testItemName}，已过${elapsedHours}小时（限时${timeLimit}小时）`,
+              };
+            });
+
+            return {
+              patientId: idLabResults[0]?.patientId || '',
+              patientName: idLabResults[0]?.patientName || '',
+              dept: idLabResults[0]?.dept || '',
+              sourceId: idLabResults[0]?.id || '',
+              sourceType: 'id_lab',
+              description: `${idLabResults.length}例乙类传染病超时未报告（限时${timeWindow}小时）`,
+              matchCount: idLabResults.length,
+              matchedRecords,
+            };
+          }
+          return null;
+        }
+
+        // Generic notifiable disease detection - find positive results that are notifiable
+        const notifiableResults = await db.infectiousDiseaseLabResult.findMany({
+          where: {
+            isPositive: 1,
+            isNotifiable: 1,
+            reportTime: { gte: windowStart },
+            ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            ...(conditionOperator === 'eq' ? { diseaseCategory: conditionValue } : {}),
+          },
+          orderBy: { reportTime: 'desc' },
+        });
+
+        if (notifiableResults.length > 0) {
+          const matchedRecords = notifiableResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName,
+            dept: r.dept,
+            sourceId: r.id,
+            sourceType: 'id_lab',
+            testItemName: r.testItemName,
+            resultValue: r.resultValue,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+            urgency: r.diseaseCategory || '其他',
+            reportTimeLimit: r.reportTimeLimit,
+            description: `法定传染病：${r.diseaseName || r.testItemName}(${r.diseaseCategory})`,
+          }));
+
+          return {
+            patientId: notifiableResults[0]?.patientId || '',
+            patientName: notifiableResults[0]?.patientName || '',
+            dept: notifiableResults[0]?.dept || '',
+            sourceId: notifiableResults[0]?.id || '',
+            sourceType: 'id_lab',
+            description: `${timeWindow}小时内检出法定传染病${notifiableResults.length}例`,
+            matchCount: notifiableResults.length,
+            matchedRecords,
+          };
+        }
+        return null;
+      }
+
       default: {
         // Generic: try to match micro lab results for 多重耐药菌 category
         if (category === '多重耐药菌') {
@@ -553,6 +899,191 @@ async function testRule(rule: any): Promise<any> {
         affectedDepts = [...new Set(tempRecords.map(r => r.dept).filter(Boolean))];
         wouldTrigger = matchCount > 0;
         matchDetail = `${timeWindow}小时内体温≥${tempThreshold}℃共${matchCount}例`;
+        break;
+      }
+      case 'idLabPositive': {
+        // Test infectious disease lab positive detection
+        if (conditionOperator === 'contains') {
+          const testName = conditionValue;
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              testItemName: { contains: testName },
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+          matchCount = idLabResults.length;
+          affectedPatients = idLabResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName || '',
+            testItemName: r.testItemName,
+            resultValue: r.resultValue,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+          }));
+          affectedDepts = [...new Set(idLabResults.map(r => r.dept).filter(Boolean))];
+          wouldTrigger = matchCount > 0;
+          matchDetail = `匹配到${matchCount}条包含"${testName}"的阳性传染病检验结果`;
+        } else {
+          // Numeric threshold check
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+          matchCount = idLabResults.length;
+          affectedPatients = idLabResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName || '',
+            testItemName: r.testItemName,
+            resultValue: r.resultValue,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+          }));
+          affectedDepts = [...new Set(idLabResults.map(r => r.dept).filter(Boolean))];
+          const threshold = parseInt(conditionValue) || 1;
+          wouldTrigger = compareValue(matchCount, conditionOperator, threshold);
+          matchDetail = `${timeWindow}小时内传染病检验阳性${matchCount}例（阈值${threshold}）`;
+        }
+        break;
+      }
+      case 'idLabCount': {
+        // Test infectious disease lab result count
+        const targetDiseaseList = rule.targetDiseases
+          ? rule.targetDiseases.split(',').map((d: string) => d.trim()).filter(Boolean)
+          : [];
+
+        const testWhere = {
+          reportTime: { gte: windowStart },
+          ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+          ...(targetDiseaseList.length > 0 ? { diseaseName: { in: targetDiseaseList } } : {}),
+        };
+
+        const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+          where: testWhere,
+          orderBy: { reportTime: 'desc' },
+          take: 20,
+        });
+        matchCount = idLabResults.length;
+        affectedPatients = idLabResults.map(r => ({
+          patientId: r.patientId,
+          patientName: r.patientName || '',
+          testItemName: r.testItemName,
+          diseaseName: r.diseaseName,
+          diseaseCategory: r.diseaseCategory,
+        }));
+        affectedDepts = [...new Set(idLabResults.map(r => r.dept).filter(Boolean))];
+
+        // For cluster rules, also check per-dept counts
+        if (rule.ruleType === '聚集预警') {
+          const deptCounts = await db.infectiousDiseaseLabResult.groupBy({
+            by: ['dept'],
+            where: { ...testWhere, dept: { not: null } },
+            _count: true,
+          });
+          const threshold = parseInt(conditionValue) || 3;
+          const maxDeptCount = deptCounts.length > 0 ? Math.max(...deptCounts.map(dc => dc._count)) : 0;
+          wouldTrigger = deptCounts.some(dc => compareValue(dc._count, conditionOperator, threshold));
+          const diseaseFilter = targetDiseaseList.length > 0 ? `（${targetDiseaseList.join('、')}）` : '';
+          matchDetail = `${timeWindow}小时内传染病检验${diseaseFilter}共${matchCount}例，科室最高${maxDeptCount}例（阈值${threshold}）`;
+        } else {
+          const threshold = parseInt(conditionValue) || 1;
+          wouldTrigger = compareValue(matchCount, conditionOperator, threshold);
+          const diseaseFilter = targetDiseaseList.length > 0 ? `（${targetDiseaseList.join('、')}）` : '';
+          matchDetail = `${timeWindow}小时内传染病检验${diseaseFilter}${matchCount}例（阈值${threshold}）`;
+        }
+        break;
+      }
+      case 'notifiableDisease': {
+        // Test notifiable disease detection
+        if (conditionOperator === 'eq' && conditionValue === '甲类') {
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              diseaseCategory: '甲类',
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+          matchCount = idLabResults.length;
+          affectedPatients = idLabResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName || '',
+            testItemName: r.testItemName,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+            urgency: '甲类',
+            reportTimeLimit: r.reportTimeLimit,
+          }));
+          affectedDepts = [...new Set(idLabResults.map(r => r.dept).filter(Boolean))];
+          wouldTrigger = matchCount > 0;
+          matchDetail = `匹配到${matchCount}例甲类传染病阳性，需立即报告`;
+        } else if (conditionOperator === 'timeout' && conditionValue === '乙类') {
+          const timeoutDate = new Date(now.getTime() - windowMs);
+          const idLabResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              diseaseCategory: '乙类',
+              autoReported: 0,
+              createdAt: { lte: timeoutDate },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 20,
+          });
+          matchCount = idLabResults.length;
+          affectedPatients = idLabResults.map(r => {
+            const elapsedHours = Math.round((now.getTime() - new Date(r.createdAt).getTime()) / (60 * 60 * 1000));
+            return {
+              patientId: r.patientId,
+              patientName: r.patientName || '',
+              testItemName: r.testItemName,
+              diseaseName: r.diseaseName,
+              diseaseCategory: r.diseaseCategory,
+              urgency: '乙类',
+              reportTimeLimit: r.reportTimeLimit,
+              elapsedHours,
+            };
+          });
+          affectedDepts = [...new Set(idLabResults.map(r => r.dept).filter(Boolean))];
+          wouldTrigger = matchCount > 0;
+          matchDetail = `${matchCount}例乙类传染病超时未报告（限时${timeWindow}小时）`;
+        } else {
+          // Generic notifiable disease test
+          const notifiableResults = await db.infectiousDiseaseLabResult.findMany({
+            where: {
+              isPositive: 1,
+              isNotifiable: 1,
+              reportTime: { gte: windowStart },
+              ...(rule.targetDepts ? { dept: { in: rule.targetDepts.split(',').map((d: string) => d.trim()) } } : {}),
+              ...(conditionOperator === 'eq' ? { diseaseCategory: conditionValue } : {}),
+            },
+            orderBy: { reportTime: 'desc' },
+            take: 20,
+          });
+          matchCount = notifiableResults.length;
+          affectedPatients = notifiableResults.map(r => ({
+            patientId: r.patientId,
+            patientName: r.patientName || '',
+            testItemName: r.testItemName,
+            diseaseName: r.diseaseName,
+            diseaseCategory: r.diseaseCategory,
+            urgency: r.diseaseCategory || '其他',
+            reportTimeLimit: r.reportTimeLimit,
+          }));
+          affectedDepts = [...new Set(notifiableResults.map(r => r.dept).filter(Boolean))];
+          wouldTrigger = matchCount > 0;
+          matchDetail = `匹配到${matchCount}例法定传染病阳性`;
+        }
         break;
       }
       default: {
