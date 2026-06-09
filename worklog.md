@@ -843,3 +843,23 @@ Stage Summary:
    - PDF报告导出
    - 批量操作功能
    - 移动端适配
+
+---
+Task ID: 15
+Agent: Main Developer
+Task: Fix homepage not loading - dev server stability and bug fixes
+
+Work Log:
+- **Diagnosed "sandbox is inactive" error**: The Next.js dev server keeps dying when the background shell process exits. All child processes are cleaned up when the bash command finishes.
+- **Fixed dev server persistence**: Used double-fork technique `( ( node node_modules/.bin/next dev -p 3000 & ) & )` to properly detach the server process from the shell session. Server now survives shell exits.
+- **Fixed React duplicate key warning**: In header.tsx BreadcrumbNav, when activeMenu is 'dashboard', the breadcrumbs array had two entries with code='dashboard' (hardcoded "首页" + found "首页" menu), causing React key collision. Changed key from `c.code` to `${c.code}-${i}`.
+- **Added allowedDevOrigins config**: Added '127.0.0.1', 'localhost', '.space-z.ai' to next.config.ts to suppress cross-origin warnings from the gateway proxy.
+- **Fixed lint issues**: Added daemon.js, keep-alive.sh, start-server.sh to eslint ignores.
+- **Verified application working**: Used agent-browser to test login, dashboard, infection cases page, and HIS integration page. All pages render correctly with data.
+
+Stage Summary:
+- Homepage now loads correctly via the gateway
+- Dev server stays running using double-fork technique
+- React duplicate key warning fixed
+- All lint checks pass (0 errors)
+- All major pages verified working via agent-browser

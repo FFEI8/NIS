@@ -49,7 +49,7 @@ function BreadcrumbNav() {
   return (
     <nav className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
       {crumbs.map((c, i) => (
-        <span key={c.code} className="flex items-center gap-1.5">
+        <span key={`${c.code}-${i}`} className="flex items-center gap-1.5">
           {i > 0 && <ChevronRight size={14} className="text-slate-300 dark:text-slate-600" />}
           <span className={i === crumbs.length - 1 ? 'text-slate-800 dark:text-slate-200 font-medium' : 'hover:text-emerald-600 cursor-pointer'}
             onClick={() => i < crumbs.length - 1 && useAppStore.getState().setActiveMenu(c.code)}>
