@@ -575,3 +575,29 @@ Stage Summary:
 - 4 related bugs fixed in one go (store endpoint, menu refresh, cache invalidation, current API optimization)
 - Menu management page enhanced with quick toggle, visibility indicators, and warning messages
 - Shared menu cache module created for consistent caching across routes
+
+---
+Task ID: 12
+Agent: Main Developer
+Task: Deep investigation and fix for menu "隐藏" not taking effect in sidebar (round 2)
+
+Work Log:
+- **Deep root cause analysis**: Traced the complete data flow from API → Store → Sidebar
+- **Identified the REAL root cause**: When page reloads, zustand persist hydrates `userMenus` from localStorage with stale data. No code was calling `refreshMenus()` on page load to sync with the latest DB state
+- **Previous fix was incomplete**: The `refreshMenus()` call in menu-management page works for immediate updates, but after page refresh, the stale localStorage data takes over
+- **Reproduced the bug**: Manually set `visible=1` in localStorage for "感染监测" (DB had `visible=0`), reloaded page → sidebar showed "感染监测" despite DB having it hidden
+- **Key fix - page load sync**: Added `useEffect(() => { refreshMenus(); }, [refreshMenus])` in `MainApp` component to re-fetch menus from API on every page load
+- **Additional fixes**:
+  - Changed `refreshMenus()` calls from fire-and-forget to `await refreshMenus()` in menu-management.tsx for reliable state updates
+  - Added null-safe check `if (!currentUser?.id) return` in `refreshMenus` to prevent 404 errors with empty userId
+- **Verified fix end-to-end** using agent-browser:
+  1. Hide "感染监测" via quick toggle button → sidebar immediately hides it ✅
+  2. Hide via edit form → sidebar immediately hides it ✅
+  3. Page reload after hiding → sidebar still hidden ✅
+  4. Show again → sidebar shows it ✅
+- All lint checks pass with 0 errors
+
+Stage Summary:
+- **Real root cause**: zustand persist hydration from localStorage overwrites API data on page load; no mechanism to re-sync menus from backend
+- **Fix**: `refreshMenus()` called on `MainApp` mount to sync store with DB state
+- Menu visibility now works correctly in all scenarios: toggle button, edit form, page refresh

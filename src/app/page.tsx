@@ -93,6 +93,15 @@ function ContentArea() {
 
 // ============ Main App ============
 function MainApp() {
+  const refreshMenus = useAppStore(s => s.refreshMenus);
+
+  useEffect(() => {
+    // On mount, re-fetch menus from API to sync with latest DB state
+    // This ensures sidebar reflects any menu visibility/structure changes
+    // that were made since the last page load (zustand persist may have stale data)
+    refreshMenus();
+  }, [refreshMenus]);
+
   return (
     <div className="h-screen flex bg-slate-50 dark:bg-slate-900">
       <Sidebar />

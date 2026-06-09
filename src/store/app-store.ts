@@ -123,10 +123,10 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      // Refresh only menus (called after menu visibility/structure changes)
+      // Refresh only menus (called after menu visibility/structure changes or on page load)
       refreshMenus: async () => {
         const { currentUser } = get();
-        if (!currentUser) return;
+        if (!currentUser?.id) return;
         try {
           const res = await fetch('/api/auth/current', {
             method: 'POST',

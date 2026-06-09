@@ -120,7 +120,7 @@ export default function MenuManagementPage() {
     setShowForm(false); setEditItem(null);
     fetchData();
     // Refresh sidebar menus so visibility changes take effect immediately
-    refreshMenus();
+    await refreshMenus();
   };
 
   const handleDelete = async (row: any) => {
@@ -128,7 +128,7 @@ export default function MenuManagementPage() {
     await fetch(`/api/menus/${row.id}`, { method: 'DELETE' });
     fetchData();
     // Refresh sidebar menus after deletion
-    refreshMenus();
+    await refreshMenus();
   };
 
   const handleToggleVisible = async (node: any) => {
@@ -143,7 +143,7 @@ export default function MenuManagementPage() {
       }),
     });
     fetchData();
-    refreshMenus();
+    await refreshMenus();
   };
 
   const renderTree = (nodes: any[], depth = 0) => {
