@@ -37,6 +37,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    // Support upsert by configKey: if configKey exists, update it; otherwise create
+    if (body.configKey) {
+      const existing = await db.systemConfig.findUnique({ where: { configKey: body.configKey } });
+      if (existing) {
+        const item = await db.systemConfig.update({
+          where: { configKey: body.configKey },
+          data: { configValue: body.configValue, configType: body.configType, category: body.category, description: body.description },
+        });
+        return NextResponse.json({ success: true, data: item });
+      }
+    }
     const item = await db.systemConfig.create({ data: body });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (error: any) {

@@ -4,7 +4,7 @@ import React from 'react';
 import {
   LayoutDashboard, Activity, FileText, AlertTriangle, Target, BarChart3, PieChart,
   FileSpreadsheet, ShieldCheck, Droplets, Flame, HardHat, ShieldAlert, Hand,
-  Pill, Settings, Users, UserCog, Menu as MenuIcon, KeyRound, ChevronRight,
+  Pill, Settings, Settings2, Users, UserCog, Menu as MenuIcon, KeyRound, ChevronRight,
   ChevronDown, ChevronLeft, Plus, Edit, Trash2, Search, RefreshCw, X, Check,
   Home as HomeIcon, Bell, LogOut, Moon, Sun, User, Lock, Eye, EyeOff, Save, Download,
   Upload, Hospital, Stethoscope, Bug, Syringe, Microscope, Thermometer,
@@ -13,18 +13,20 @@ import {
   UserPlus, ShieldHalf, Network, Key, MoreHorizontal, ArrowLeft, ArrowRight,
   Biohazard, Siren, UsersRound, ScanSearch, MapPin, CalendarDays, ClipboardCheck, FileWarning,
   Gauge, BarChart4, LineChart, ActivitySquare,
+  GitMerge, FlaskConical, ArrowLeftRight,
 } from 'lucide-react';
 
 export const lucideIconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
   LayoutDashboard, Activity, FileText, AlertTriangle, Target, BarChart3, PieChart,
   FileSpreadsheet, ShieldCheck, Droplets, Flame, HardHat, ShieldAlert, Hand,
-  Pill, Settings, Users, UserCog, Menu: MenuIcon, KeyRound, ChevronRight,
+  Pill, Settings, Settings2, Users, UserCog, Menu: MenuIcon, KeyRound, ChevronRight,
   ChevronDown, ChevronLeft, Plus, Edit, Trash2, Search, RefreshCw, X, Check,
   Home: HomeIcon, Bell, LogOut, Moon, Sun, User, Lock, Eye, Save, Download, Upload,
   Hospital, Stethoscope, Bug, Syringe, Microscope, Thermometer,
   ClipboardList, Shield, Zap, Clock,
   Biohazard, Siren, UsersRound, ScanSearch, MapPin, CalendarDays, ClipboardCheck, FileWarning,
   Gauge, BarChart4, LineChart, ActivitySquare,
+  GitMerge, FlaskConical, ArrowLeftRight,
 };
 
 export function LucideIcon({ name, size = 18, className }: { name?: string; size?: number; className?: string }) {

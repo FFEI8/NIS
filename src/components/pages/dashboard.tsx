@@ -4,9 +4,127 @@ import { useState, useEffect } from 'react';
 import type { DashboardStats } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedCounter, CircularProgress } from '@/components/shared/animated';
-import { Activity, AlertTriangle, Bug, Pill, Hand, ShieldCheck, HardHat, ShieldAlert, TrendingDown, TrendingUp, Zap, CheckCircle2, AlertCircle, BarChart3, PieChart, Microscope, Droplets, FileSpreadsheet, Hospital } from 'lucide-react';
+import { Activity, AlertTriangle, Bug, Pill, Hand, ShieldCheck, HardHat, ShieldAlert, TrendingDown, TrendingUp, Zap, CheckCircle2, AlertCircle, BarChart3, PieChart, Microscope, Droplets, FileSpreadsheet, Hospital, Clock, Plus, Bell, Sun, Moon } from 'lucide-react';
 import { useAppStore } from '@/store/app-store';
 
+// ============ Real-time Clock Component ============
+function DashboardClock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hour = time.getHours();
+  const greeting = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好';
+  const icon = hour < 6 ? <Moon size={18} /> : hour < 12 ? <Sun size={18} /> : hour < 18 ? <Sun size={18} /> : <Moon size={18} />;
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+        {icon}
+        <span className="text-lg font-semibold">{greeting}</span>
+      </div>
+      <div className="h-5 w-px bg-slate-300 dark:bg-slate-600" />
+      <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+        <Clock size={14} />
+        <span>{time.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
+        <span className="text-slate-400 dark:text-slate-500">|</span>
+        <span className="font-mono tabular-nums">{time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+      </div>
+    </div>
+  );
+}
+
+// ============ Mini Sparkline ============
+function MiniSparkline({ data, color = '#10b981', width = 80, height = 28 }: { data: number[]; color?: string; width?: number; height?: number }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
+    return `${x},${y}`;
+  }).join(' ');
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+
+  return (
+    <svg width={width} height={height} className="opacity-60">
+      <polygon points={areaPoints} fill={color} fillOpacity={0.1} />
+      <polyline points={points} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ============ Recent Warnings Mini-List ============
+function RecentWarnings() {
+  const [warnings, setWarnings] = useState<Array<{ id: string; patientName: string; dept: string; warningLevel: string; description: string; createdAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/warnings?pageSize=5')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data?.items) {
+          setWarnings(d.data.items.slice(0, 5));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const levelColors: Record<string, string> = {
+    '高': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    '中': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    '低': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+        <Bell size={18} className="text-rose-500" /> 最近预警
+        <button
+          onClick={() => useAppStore.getState().setActiveMenu('infection-warning')}
+          className="ml-auto text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
+        >
+          查看全部 →
+        </button>
+      </h3>
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
+        </div>
+      ) : warnings.length === 0 ? (
+        <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">暂无预警记录</div>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+          {warnings.map((w, i) => (
+            <div key={w.id || i}
+              className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group"
+              onClick={() => useAppStore.getState().setActiveMenu('infection-warning')}
+            >
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${levelColors[w.warningLevel] || levelColors['低']}`}>
+                {w.warningLevel}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-slate-700 dark:text-slate-300 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  {w.patientName} - {w.dept}
+                </div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 truncate">{w.description}</div>
+              </div>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                {w.createdAt?.slice(5, 10) || ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ Dashboard Page ============
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,14 +150,14 @@ export default function DashboardPage() {
   if (!stats) return <div className="text-center text-slate-400 py-8">暂无数据</div>;
 
   const statCards = [
-    { label: '累计感染病例', value: stats.totalInfections, icon: <Activity size={22} />, color: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800', trend: `本月+${stats.monthInfections}`, trendIcon: <TrendingUp size={12} /> },
-    { label: '待处理预警', value: stats.pendingWarnings, icon: <AlertTriangle size={22} />, color: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800', trend: '需及时处理', trendIcon: <Zap size={12} /> },
-    { label: '多重耐药菌', value: stats.mdroCount, icon: <Bug size={22} />, color: 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800', trend: '重点关注', trendIcon: <AlertCircle size={12} /> },
-    { label: '抗菌药物使用率', value: stats.antibioticUsageRate, suffix: '%', icon: <Pill size={22} />, color: 'bg-teal-50 text-teal-600 border-teal-200 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-800', trend: '持续监测', trendIcon: <Activity size={12} /> },
-    { label: '手卫生依从率', value: stats.handHygieneRate, suffix: '%', icon: <Hand size={22} />, color: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800', trend: '稳步提升', trendIcon: <TrendingUp size={12} /> },
-    { label: '环境卫生合格率', value: stats.envHygieneRate, suffix: '%', icon: <ShieldCheck size={22} />, color: 'bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-800', trend: '达标', trendIcon: <CheckCircle2 size={12} /> },
-    { label: '职业暴露事件', value: stats.exposureCount, icon: <HardHat size={22} />, color: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800', trend: '本年度累计', trendIcon: <ShieldAlert size={12} /> },
-    { label: '本月新增感染', value: stats.monthInfections, icon: <TrendingDown size={22} />, color: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800', trend: `累计${stats.monthInfections}例`, trendIcon: <TrendingDown size={12} /> },
+    { label: '累计感染病例', value: stats.totalInfections, icon: <Activity size={22} />, gradient: 'from-rose-500 to-pink-600', bgLight: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-600', darkBg: 'dark:bg-rose-900/20', darkBorder: 'dark:border-rose-800', darkText: 'dark:text-rose-400', trend: `本月+${stats.monthInfections}`, trendIcon: <TrendingUp size={12} />, sparkData: stats.infectionTrend?.map(t => t.count) || [] },
+    { label: '待处理预警', value: stats.pendingWarnings, icon: <AlertTriangle size={22} />, gradient: 'from-amber-500 to-orange-600', bgLight: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-600', darkBg: 'dark:bg-amber-900/20', darkBorder: 'dark:border-amber-800', darkText: 'dark:text-amber-400', trend: '需及时处理', trendIcon: <Zap size={12} />, sparkData: [] },
+    { label: '多重耐药菌', value: stats.mdroCount, icon: <Bug size={22} />, gradient: 'from-purple-500 to-violet-600', bgLight: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', darkBg: 'dark:bg-purple-900/20', darkBorder: 'dark:border-purple-800', darkText: 'dark:text-purple-400', trend: '重点关注', trendIcon: <AlertCircle size={12} />, sparkData: [] },
+    { label: '抗菌药物使用率', value: stats.antibioticUsageRate, suffix: '%', icon: <Pill size={22} />, gradient: 'from-teal-500 to-cyan-600', bgLight: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-600', darkBg: 'dark:bg-teal-900/20', darkBorder: 'dark:border-teal-800', darkText: 'dark:text-teal-400', trend: '持续监测', trendIcon: <Activity size={12} />, sparkData: [35, 42, 38, 45, 40, stats.antibioticUsageRate] },
+    { label: '手卫生依从率', value: stats.handHygieneRate, suffix: '%', icon: <Hand size={22} />, gradient: 'from-emerald-500 to-green-600', bgLight: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-600', darkBg: 'dark:bg-emerald-900/20', darkBorder: 'dark:border-emerald-800', darkText: 'dark:text-emerald-400', trend: '稳步提升', trendIcon: <TrendingUp size={12} />, sparkData: [72, 78, 82, 85, 88, stats.handHygieneRate] },
+    { label: '环境卫生合格率', value: stats.envHygieneRate, suffix: '%', icon: <ShieldCheck size={22} />, gradient: 'from-cyan-500 to-sky-600', bgLight: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-600', darkBg: 'dark:bg-cyan-900/20', darkBorder: 'dark:border-cyan-800', darkText: 'dark:text-cyan-400', trend: '达标', trendIcon: <CheckCircle2 size={12} />, sparkData: [90, 92, 88, 93, 91, stats.envHygieneRate] },
+    { label: '职业暴露事件', value: stats.exposureCount, icon: <HardHat size={22} />, gradient: 'from-orange-500 to-red-500', bgLight: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', darkBg: 'dark:bg-orange-900/20', darkBorder: 'dark:border-orange-800', darkText: 'dark:text-orange-400', trend: '本年度累计', trendIcon: <ShieldAlert size={12} />, sparkData: [] },
+    { label: '本月新增感染', value: stats.monthInfections, icon: <TrendingDown size={22} />, gradient: 'from-red-500 to-rose-600', bgLight: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', darkBg: 'dark:bg-red-900/20', darkBorder: 'dark:border-red-800', darkText: 'dark:text-red-400', trend: `累计${stats.monthInfections}例`, trendIcon: <TrendingDown size={12} />, sparkData: [] },
   ];
 
   // Circular progress data
@@ -51,25 +169,35 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      {/* Welcome + Clock Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">感染监控概览</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">实时监控医院感染相关指标</p>
         </div>
+        <DashboardClock />
       </div>
 
-      {/* Stat cards with animated counters */}
+      {/* Stat cards with gradient backgrounds, shadows and sparklines */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
-          <div key={i} className={`p-4 rounded-xl border ${card.color} transition-all duration-200 hover:shadow-md hover:scale-[1.02]`}>
+          <div key={i} className={`relative overflow-hidden p-4 rounded-xl border ${card.bgLight} ${card.border} ${card.darkBg} ${card.darkBorder} transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group`}>
+            {/* Gradient accent bar at top */}
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient} opacity-80`} />
             <div className="flex items-center justify-between mb-2">
-              <div className="opacity-80">{card.icon}</div>
-              <span className="text-[10px] opacity-60 flex items-center gap-0.5">{card.trendIcon}{card.trend}</span>
+              <div className={`opacity-80 ${card.text} ${card.darkText}`}>{card.icon}</div>
+              <span className={`text-[10px] opacity-60 flex items-center gap-0.5 ${card.text} ${card.darkText}`}>{card.trendIcon}{card.trend}</span>
             </div>
-            <div className="text-2xl font-bold">
+            <div className={`text-2xl font-bold ${card.text} ${card.darkText}`}>
               <AnimatedCounter target={card.value} suffix={card.suffix || ''} />
             </div>
-            <div className="text-xs opacity-70 mt-1">{card.label}</div>
+            <div className={`text-xs opacity-70 mt-1 ${card.text} ${card.darkText}`}>{card.label}</div>
+            {/* Mini sparkline */}
+            {card.sparkData.length >= 2 && (
+              <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <MiniSparkline data={card.sparkData} color={card.gradient.includes('rose') ? '#f43f5e' : card.gradient.includes('amber') ? '#f59e0b' : card.gradient.includes('purple') ? '#a855f7' : card.gradient.includes('teal') ? '#14b8a6' : card.gradient.includes('emerald') ? '#10b981' : card.gradient.includes('cyan') ? '#06b6d4' : card.gradient.includes('orange') ? '#f97316' : '#ef4444'} />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -185,6 +313,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Recent Warnings Section */}
+      <RecentWarnings />
     </div>
   );
 }

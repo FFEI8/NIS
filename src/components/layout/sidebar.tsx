@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAppStore } from '@/store/app-store';
 import type { MenuItem } from '@/types';
 import { LucideIcon } from '@/components/shared/icons';
-import { Hospital, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Hospital, ChevronRight, ChevronLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 export default function Sidebar() {
   const { userMenus, sidebarCollapsed, toggleSidebar, activeMenu, setActiveMenu, currentUser } = useAppStore();
@@ -64,28 +64,38 @@ export default function Sidebar() {
         <div key={menu.id}>
           <div
             className={`flex items-center gap-2.5 py-2.5 mx-2 rounded-lg cursor-pointer transition-all duration-200 group relative
-              ${isActive && !hasChildren ? 'bg-emerald-600/15 text-emerald-400 dark:text-emerald-400' : 'text-slate-400 hover:bg-white/5 hover:text-white'}
+              ${isActive && !hasChildren
+                ? 'bg-emerald-600/15 text-emerald-400 dark:text-emerald-400'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }
             `}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
             onClick={() => handleMenuClick(menu)}
+            title={sidebarCollapsed ? menu.name : undefined}
           >
-            {/* Active left border indicator */}
+            {/* Active left border indicator with pulse glow */}
             {isActive && !hasChildren && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-500 rounded-r-full" />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-500 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
             )}
             <LucideIcon name={menu.icon} size={18} className={`flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
             {!sidebarCollapsed && (
               <>
                 <span className="flex-1 text-sm font-medium truncate">{menu.name}</span>
                 {hasChildren && (
-                  <ChevronRight size={14} className={`text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                  <ChevronRight size={14} className={`text-slate-500 transition-transform duration-300 ease-in-out ${isExpanded ? 'rotate-90' : ''}`} />
                 )}
               </>
             )}
+            {/* Tooltip for collapsed items */}
+            {sidebarCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                {menu.name}
+              </div>
+            )}
           </div>
-          {/* Animated children container */}
+          {/* Animated children container with smoother transition */}
           {hasChildren && !sidebarCollapsed && (
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
               {renderMenuItems(menu.children, depth + 1)}
             </div>
           )}
@@ -96,6 +106,7 @@ export default function Sidebar() {
 
   return (
     <aside className={`h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
+      {/* Logo header */}
       <div className="flex items-center h-14 px-4 border-b border-slate-800">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2 overflow-hidden">
@@ -104,25 +115,48 @@ export default function Sidebar() {
           </div>
         )}
         {sidebarCollapsed && <Hospital size={22} className="text-emerald-400 mx-auto" />}
-        <button onClick={handleToggleSidebar}
-          className={`${sidebarCollapsed ? 'mx-auto mt-1' : 'ml-auto'} text-slate-400 hover:text-white p-1 rounded transition-colors`}>
-          {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
       </div>
+
+      {/* Navigation area */}
       <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
         {renderMenuItems(visibleMenus)}
       </nav>
+
+      {/* Collapse toggle button */}
+      <div className="border-t border-slate-800">
+        <button
+          onClick={handleToggleSidebar}
+          className="w-full flex items-center justify-center gap-2 py-3 text-slate-500 hover:text-white hover:bg-slate-800/50 transition-colors duration-200"
+          title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={18} />
+          ) : (
+            <>
+              <PanelLeftClose size={18} />
+              <span className="text-xs">收起侧边栏</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* User info at bottom of sidebar */}
-      {currentUser && !sidebarCollapsed && (
+      {currentUser && (
         <div className="border-t border-slate-800 p-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-              {currentUser.name?.[0] || 'U'}
+            <div className="relative flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg shadow-emerald-600/20">
+                {currentUser.name?.[0] || 'U'}
+              </div>
+              {/* Online indicator */}
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm text-white truncate">{currentUser.name}</div>
-              <div className="text-xs text-slate-500 truncate">{currentUser.dept}</div>
-            </div>
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-white truncate">{currentUser.name}</div>
+                <div className="text-xs text-slate-500 truncate">{currentUser.dept}</div>
+              </div>
+            )}
           </div>
         </div>
       )}

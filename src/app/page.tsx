@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ComponentType } from 'react';
+import { useState, useEffect, ComponentType, useRef } from 'react';
 import { useAppStore } from '@/store/app-store';
 import { useConfigStore } from '@/store/config-store';
 import { Hospital, RefreshCw, Loader2 } from 'lucide-react';
@@ -20,6 +20,57 @@ function PageLoading() {
         <div className="text-slate-500 text-sm">加载中...</div>
       </div>
     </div>
+  );
+}
+
+// ============ Top Loading Bar ============
+function LoadingBar() {
+  const [loading, setLoading] = useState(false);
+  const [complete, setComplete] = useState(false);
+
+  useEffect(() => {
+    // Intercept fetch to show loading bar for API calls
+    const originalFetch = window.fetch;
+    let activeRequests = 0;
+
+    window.fetch = async (...args) => {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+      // Only show loading bar for API calls (not static assets)
+      if (url.startsWith('/api/')) {
+        activeRequests++;
+        if (!loading) {
+          setLoading(true);
+          setComplete(false);
+        }
+      }
+
+      try {
+        const response = await originalFetch(...args);
+        return response;
+      } finally {
+        if (url.startsWith('/api/')) {
+          activeRequests--;
+          if (activeRequests <= 0) {
+            activeRequests = 0;
+            setComplete(true);
+            setTimeout(() => {
+              setLoading(false);
+              setComplete(false);
+            }, 400);
+          }
+        }
+      }
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [loading]);
+
+  if (!loading && !complete) return null;
+
+  return (
+    <div className={`loading-bar ${complete ? 'complete' : loading ? 'active' : ''}`} />
   );
 }
 
@@ -56,6 +107,8 @@ const DiseaseAlertPage = dynamicPage(() => import('@/components/pages/disease-al
 const WarningRulesPage = dynamicPage(() => import('@/components/pages/warning-rules'));
 const MicroLabResultsPage = dynamicPage(() => import('@/components/pages/micro-lab-results'));
 const HISIntegrationAnalysisPage = dynamicPage(() => import('@/components/pages/his-integration-analysis'));
+const InfectiousDiseaseTestItemsPage = dynamicPage(() => import('@/components/pages/infectious-disease-test-items'));
+const HisTestMappingPage = dynamicPage(() => import('@/components/pages/his-test-mapping'));
 
 // ============ Content Router ============
 function ContentArea() {
@@ -85,10 +138,12 @@ function ContentArea() {
     'infection-warning-rules': <WarningRulesPage />,
     'micro-lab-results': <MicroLabResultsPage />,
     'his-integration': <HISIntegrationAnalysisPage />,
+    'infectious-disease-test-items': <InfectiousDiseaseTestItemsPage />,
+    'his-test-mapping': <HisTestMappingPage />,
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6 animate-in fade-in duration-200" key={activeMenu}>
       {pages[activeMenu] || <DashboardPage />}
     </div>
   );
@@ -112,10 +167,11 @@ function MainApp() {
 
   return (
     <div className="h-screen flex bg-slate-50 dark:bg-slate-900">
+      <LoadingBar />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto scrollbar-thin">
           <ContentArea />
         </main>
         <footer className="h-8 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500 mt-auto">

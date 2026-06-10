@@ -1390,3 +1390,195 @@ Stage Summary:
 - Style enhancements: animated counters, progress bars, tab count badges, connection status, refresh button
 - Backend APIs: his-field-mappings CRUD, warning-rule-logs all working
 - Fixed 3 bugs: duplicate key, wrong API endpoint, complex JSX crash
+
+---
+Task ID: 3
+Agent: HIS FieldMapping Developer
+Task: Significantly improve HIS Integration Analysis page (6 major features)
+
+Work Log:
+- **Fixed alert() → toast notifications**: Replaced `alert(result.message)` with `toast.error(result.message)` and added `toast.success()` for all successful CRUD operations (create, update, delete mapping, save warning config, CSV export, batch operations). Added Sonner Toaster to layout.tsx.
+- **Added Visual Mapping Diagram Tab**: New "映射关系图" tab with SVG MappingDiagram component showing system fields (left) and HIS fields (right) connected by colored Bezier curves. Colors: green=mapped, amber=risk, red=required unmapped, gray=unmapped. Hover shows transform rule tooltip. Click to edit mapping. Per-scenario mapping stats cards with completion %, risk count, required-unmapped count.
+- **Added Batch Operations**: Checkbox column in field mapping table with select-all header. Batch action bar appears when items are selected: 批量启用, 批量禁用, 导出选中, 批量删除. Shows selected count. Selection cleared on scenario change.
+- **Added Mapping Health Check**: "健康检查" button with Heart icon in header. Analyzes all field mappings for: required unmapped fields (high), consistency risks (medium), missing validation rules (medium), missing transform rules for DateTime/Enum (low). Shows health score (0-100) in circular SVG indicator. Issues grouped by severity with badges.
+- **Save Warning Config to Backend**: Modified `saveWarningConfig` to save 4 config values to SystemConfig API (auto_report, fever_threshold, report_fever_level, target_depts). Modified SystemConfig POST route to support upsert by configKey. Still saves to localStorage as fallback.
+- **Added CSV Export**: "导出CSV" button downloads field mappings as CSV with BOM marker for Excel compatibility. Headers: 系统字段, 系统标签, 数据类型, 长度, 必填, HIS字段, HIS表名, 转换规则, 特殊逻辑, 校验规则, 一致性风险. Supports exporting all or selected fields.
+- Fixed pre-existing lint error in page.tsx (setState in effect → moved to setTimeout callback)
+
+Stage Summary:
+- 6 major features added to HIS integration page (2015 → 2589 lines)
+- All alert() calls replaced with sonner toast notifications
+- Visual mapping diagram with interactive SVG
+- Batch operations (enable/disable/delete/export)
+- Health check with score and issue grouping
+- Warning config persists to SystemConfig database
+- CSV export with Excel BOM support
+- SystemConfig API supports upsert by configKey
+- Lint passes with 0 errors
+
+---
+Task ID: 4
+Agent: UI Enhancement Developer
+Task: Improve style details and interaction optimization
+
+Work Log:
+- Dashboard: Added DashboardClock (real-time + greeting), MiniSparkline SVG, gradient accent bars on stat cards, RecentWarnings mini-list (5 items from API)
+- Sidebar: Active item pulse glow, collapsed tooltips, "收起侧边栏" toggle button (PanelLeftClose/PanelLeftOpen), gradient avatar with online indicator
+- Data Table: Fullscreen toggle (Fullscreen API), sticky header, jump-to-page input, page size selector (10/20/50/100), SVG empty state illustration
+- Header: GlobalSearch with Ctrl+K shortcut, search modal with menu filtering, notification pulse animation, focus ring styles, enhanced user dropdown with role badges
+- Login: 20 floating particles (CSS float-particle animation), entrance animation (translate-y + opacity), real-time field validation, version info footer
+- Global CSS: Custom scrollbars (thin/rounded/themed), loading bar (gradient + glow), float-particle keyframes, focus-visible accessibility styles, kbd badge styling
+- page.tsx: LoadingBar component (intercepts fetch for /api/ calls), animate-in fade-in page transitions with key={activeMenu}
+- Lint passes with 0 errors
+
+Stage Summary:
+- 6 components significantly enhanced with new UI/UX features
+- All enhancements support dark mode and responsive design
+- Accessibility improved with focus-visible states and keyboard shortcuts
+
+---
+Task ID: 5
+Agent: Feature Enhancement Developer
+Task: Add new pages (传染病检验项目配置, HIS检验项目映射) and fix issues
+
+Work Log:
+- **Read project history and reference files**: Studied worklog.md, existing page patterns (infection-cases, warnings), Prisma schema (InfectiousDiseaseTestItem, HisInfectiousDiseaseTestMapping models), API routes, page.tsx router, and seed route
+- **Created API routes for individual item CRUD**:
+  - `/api/infectious-disease-test-items/[id]/route.ts` - GET (with 404 check), PUT, DELETE
+  - `/api/his-id-test-mapping/[id]/route.ts` - GET (with 404 check), PUT, DELETE
+  - Both follow existing project patterns with proper error handling
+- **Created InfectiousDiseaseTestItemsPage** (`/src/components/pages/infectious-disease-test-items.tsx`):
+  - Full CRUD with Add/Edit dialog supporting all model fields
+  - Display columns: 检验项目编码, 检验项目名称, 阳性判定结果值, 关联传染病名称, 传染病分类 (color-coded badges), 是否法定报告 (Shield icon), 报告时限, 预警级别, 状态
+  - Category color coding: 甲类(red), 乙类(amber), 丙类(sky), 其他(slate)
+  - Warning level color coding: 高(red bold), 中(amber semibold), 低(slate)
+  - Search by name/code/disease keyword
+  - Filter by diseaseCategory and status
+  - Enable/Disable toggle via API
+  - Import from HIS mapping (fetches HisInfectiousDiseaseTestMapping data and creates test items)
+  - CSV export functionality
+  - Form with 12+ fields organized in 2-column grid
+  - Uses toast notifications instead of alert()
+  - Full dark mode support
+- **Created HisTestMappingPage** (`/src/components/pages/his-test-mapping.tsx`):
+  - Full CRUD with Add/Edit dialog organized in 3 sections (HIS信息, 系统信息, 转换与一致性)
+  - Quick stats bar: 映射总数, 已启用, 已禁用, 有风险说明
+  - Display columns: HIS检验代码 (sky monospace), HIS检验名称, 子项序号 (outline badge), 系统检验编码 (emerald monospace), 系统检验名称, 转换规则, 一致性风险 (color-coded badge), 状态
+  - Consistency risk color coding based on severity keywords
+  - Search by HIS code/name/system name
+  - Filter by status
+  - Enable/Disable toggle
+  - CSV export
+  - Full dark mode support
+- **Registered new pages in page.tsx**:
+  - Added dynamic imports: `InfectiousDiseaseTestItemsPage` and `HisTestMappingPage`
+  - Added content router entries: `'infectious-disease-test-items'` and `'his-test-mapping'`
+- **Updated seed data** (`/src/app/api/seed/route.ts`):
+  - Added 8 new permissions: `id:test-item:list/add/edit/delete` and `his:test-mapping:list/add/edit/delete`
+  - Added 2 new menu items:
+    - "检验项目配置" (code: `infectious-disease-test-items`, icon: FlaskConical) under 传染病管理 directory (sort: 5, after 传染病预警)
+    - "HIS检验映射" (code: `his-test-mapping`, icon: ArrowLeftRight) under 数据分析 directory (sort: 3, after HIS对接分析)
+  - Updated infection control role permissions: added `his:` prefix to regex pattern
+  - Updated infection control menu codes: added `infectious-disease-test-items` and `his-test-mapping`
+  - Added 8 InfectiousDiseaseTestItem seed records: HBsAg, HBeAg, Anti-HCV, Anti-HIV, TP-Ab, SARS-CoV-2 RNA, TB-DNA, NG-Culture
+  - Added 8 HisInfectiousDiseaseTestMapping seed records: mapping HIS test codes to system test items with transform rules and consistency risks
+- **Updated icons component** (`/src/components/shared/icons.tsx`):
+  - Added imports: `Settings2`, `GitMerge`, `FlaskConical`, `ArrowLeftRight`
+  - Added to lucideIconMap: `Settings2`, `GitMerge`, `FlaskConical`, `ArrowLeftRight`
+- **Fixed data-table.tsx fullscreen toggle**:
+  - Bug: When user exits fullscreen via Escape key, `isFullscreen` state stays `true`
+  - Fix: Added `fullscreenchange` event listener to sync state with actual fullscreen state
+  - Added `useEffect` import
+- **Lint passes** with 0 errors
+- **Dev server running** with no errors (all API calls returning 200)
+
+Stage Summary:
+- 2 new page components created (~300 lines each) following existing patterns
+- 2 new API route files for individual CRUD operations
+- 2 new menu items and 8 new permissions in seed data
+- 8 InfectiousDiseaseTestItem + 8 HisInfectiousDiseaseTestMapping seed records
+- Icons component updated with 4 new icons
+- Data-table fullscreen toggle bug fixed
+- All lint checks pass, dev server running cleanly
+
+---
+Task ID: 3-5
+Agent: Main Developer (Session Continuation)
+Task: HisFieldMapping模块改进、样式细节与交互优化、功能增强与逻辑完善
+
+Work Log:
+- **全面审查项目状态**: 阅读worklog.md（1502行），了解完整开发历史
+- **HisFieldMapping模块大幅改进**（委托子代理Task 3）:
+  - 修复alert()调用，改用sonner toast通知系统
+  - 新增"映射关系图"Tab：SVG可视化映射关系图，左侧系统字段→右侧HIS字段，Bezier曲线连接
+  - 连接线颜色编码：绿色=已映射，琥珀色=有风险，红色=必填未映射，灰色=未映射
+  - 新增批量操作：全选/取消、批量启用/禁用、批量删除、批量导出CSV
+  - 新增"健康检查"功能：分析必填未映射、一致性风险、缺失校验规则、缺失转换规则
+  - 健康评分（0-100）+ SVG圆形进度指示器
+  - 体温预警配置保存到后端SystemConfig表（4个配置键）
+  - CSV导出：支持导出全部或选中字段映射
+- **样式细节与交互优化**（委托子代理Task 4）:
+  - 仪表盘：实时时钟+问候语（早上好/下午好/晚上好）、渐变色卡片、MiniSparkline迷你图、最近预警列表
+  - 侧边栏：活跃项脉冲动画、折叠按钮、折叠时Tooltip、用户头像增强
+  - 数据表格：全屏切换、粘性表头、跳转页码、页大小选择器(10/20/50/100)、SVG空状态图
+  - 头部：全局搜索(Ctrl+K)、通知脉冲动画、用户下拉增强
+  - 登录页：CSS粒子动画、入场动画、实时表单验证、版本信息
+  - 全局：自定义滚动条、顶部加载条、页面过渡动画、focus-visible无障碍样式
+- **新增功能**（委托子代理Task 5）:
+  - 传染病检验项目配置页面（InfectiousDiseaseTestItem CRUD）
+  - HIS检验项目映射页面（HisInfectiousDiseaseTestMapping CRUD）
+  - 新增8个权限(id:test-item:*, his:test-mapping:*)和2个菜单项
+  - 新增8条InfectiousDiseaseTestItem种子数据
+  - 新增8条HisInfectiousDiseaseTestMapping种子数据
+  - 修复数据表格全屏切换Escape键退出bug
+- **创建定时审查任务**（每15分钟，Cron Job ID: 196990）
+- 所有lint检查通过(0 errors)
+
+Stage Summary:
+- HIS对接分析页面从2014行扩展到2589行，新增6大功能
+- 仪表盘、侧边栏、数据表格、头部、登录页全面UI增强
+- 新增2个完整页面组件（检验项目配置、HIS检验映射）
+- 新增2个API路由文件（individual CRUD for test items and mappings）
+- 全局样式改进（滚动条、加载条、页面过渡、无障碍）
+- 定时审查任务已创建（每15分钟自动审查）
+
+---
+## 项目当前状态描述/判断
+
+**状态**: HisFieldMapping模块全面升级完成，UI大幅增强，系统功能丰富
+
+### 当前系统包含：
+- **30+数据库模型** + **30+菜单项** + **68+权限项**
+- **26+页面组件**：登录、仪表盘、感染监测(4)、数据分析(3)、环境监测(2)、职业安全(2)、抗菌药物、传染病管理(6)、系统管理(4)、HIS对接(1)
+- HIS对接分析：8个Tab（业务场景、字段映射、映射关系图、数据转换、校验规则、一致性、体温对接、检验对接、同步日志）+ 健康检查 + 批量操作 + CSV导出
+- 仪表盘：实时时钟、问候语、渐变卡片、迷你图、最近预警、快捷操作
+- 全局增强：Ctrl+K搜索、自定义滚动条、页面过渡、加载条、暗黑模式
+
+## 当前目标/已完成的修改/验证结果
+
+**本轮完成**:
+1. ✅ HisFieldMapping模块6大改进（视觉映射图、批量操作、健康检查、CSV导出、toast通知、后端配置保存）
+2. ✅ 样式细节6大优化（仪表盘、侧边栏、数据表格、头部、登录页、全局样式）
+3. ✅ 新增2个页面组件（检验项目配置、HIS检验映射）
+4. ✅ 新增8个权限 + 2个菜单项 + 种子数据
+5. ✅ 创建定时审查任务（每15分钟）
+6. ✅ lint检查0 errors
+
+**验证结果**:
+- agent-browser验证：仪表盘渲染正确（下午好问候语、统计卡片、最近预警）
+- agent-browser验证：HIS对接页面API正常返回（10场景、122字段映射、18转换规则、33校验规则、15一致性问题）
+- curl验证：所有API返回200
+- lint检查：0 errors, 0 warnings
+
+## 未解决问题或风险，建议下一阶段优先事项
+
+1. **agent-browser导航限制**: 侧边栏菜单点击后activeMenu状态更新在agent-browser中未正确传播，需要通过其他方式验证HIS对接页面
+2. **建议继续增强**:
+   - ECharts交互图表替代纯CSS/SVG图表
+   - 打印功能（感染报告、预警报告PDF导出）
+   - 数据导入功能（Excel上传解析）
+   - 操作审计日志持久化到数据库
+   - 移动端响应式布局优化
+   - WebSocket实时推送预警提醒
+   - 批量审核/批量上报功能
+3. **性能优化**: API分页缓存、前端组件懒加载、大数据量虚拟滚动

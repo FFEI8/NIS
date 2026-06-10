@@ -7,8 +7,9 @@ import {
   ChevronRight, ArrowLeftRight, Calendar, Code2, Binary, SlidersHorizontal,
   Thermometer, RefreshCw, Save, Users, Activity, TrendingUp, Eye,
   Plus, Trash2, Pencil, Search, Wifi, WifiOff, FlaskConical,
-  Clock, Filter, X, Play, TestTube
+  Clock, Filter, X, Play, TestTube, Download, Heart, Network,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -444,6 +445,18 @@ export default function HISIntegrationAnalysisPage() {
   const [deleteMapping, setDeleteMapping] = useState<FieldMapping | null>(null);
   const [mappingSaving, setMappingSaving] = useState(false);
 
+  // Batch operations state
+  const [selectedMappingIds, setSelectedMappingIds] = useState<Set<string>>(new Set());
+  const [batchProcessing, setBatchProcessing] = useState(false);
+
+  // Health check state
+  const [healthCheckOpen, setHealthCheckOpen] = useState(false);
+  const [healthCheckResult, setHealthCheckResult] = useState<{
+    score: number;
+    issues: Array<{ severity: string; category: string; description: string; field: string; scenario: string }>;
+  } | null>(null);
+  const [healthCheckLoading, setHealthCheckLoading] = useState(false);
+
   // Temperature tab state
   const [tempStats, setTempStats] = useState<TemperatureStats | null>(null);
   const [tempLoading, setTempLoading] = useState(false);
@@ -592,11 +605,27 @@ export default function HISIntegrationAnalysisPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Save warning config
+  // Save warning config to backend SystemConfig
   const saveWarningConfig = async () => {
     setConfigSaving(true);
-    await new Promise(r => setTimeout(r, 500));
-    localStorage.setItem('hims-temperature-warning-config', JSON.stringify(warningConfig));
+    try {
+      const configs = [
+        { configKey: 'temperature_warning_auto_report', configValue: String(warningConfig.autoReportEnabled), configType: 'boolean', category: 'temperature_warning', description: '体温预警自动上报开关' },
+        { configKey: 'temperature_warning_fever_threshold', configValue: String(warningConfig.feverThreshold), configType: 'number', category: 'temperature_warning', description: '发热阈值(℃)' },
+        { configKey: 'temperature_warning_report_fever_level', configValue: warningConfig.reportFeverLevel, configType: 'string', category: 'temperature_warning', description: '触发上报发热分级' },
+        { configKey: 'temperature_warning_target_depts', configValue: warningConfig.targetDepts.join(','), configType: 'string', category: 'temperature_warning', description: '目标科室' },
+      ];
+      await Promise.all(configs.map(c => fetch('/api/system-configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(c),
+      })));
+      // Also save to localStorage as fallback
+      localStorage.setItem('hims-temperature-warning-config', JSON.stringify(warningConfig));
+      toast.success('预警配置已保存');
+    } catch {
+      toast.error('保存配置失败');
+    }
     setConfigSaving(false);
   };
 
@@ -651,18 +680,24 @@ export default function HISIntegrationAnalysisPage() {
           body: JSON.stringify({ ...mapping, scenarioId: selectedScenario }),
         });
         const result = await res.json();
-        if (!result.success) { alert(result.message); setMappingSaving(false); return; }
+        if (!result.success) { toast.error(result.message); setMappingSaving(false); return; }
+        toast.success('字段映射已创建');
       } else if (mapping.id) {
-        await fetch(`/api/his-mapping/field-mappings/${mapping.id}`, {
+        const res = await fetch(`/api/his-mapping/field-mappings/${mapping.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(mapping),
         });
+        const result = await res.json();
+        if (!result.success) { toast.error(result.message); setMappingSaving(false); return; }
+        toast.success('字段映射已更新');
       }
       fetchData();
       setEditMapping(null);
       setAddMappingOpen(false);
-    } catch { /* ignore */ }
+    } catch {
+      toast.error('保存字段映射失败');
+    }
     setMappingSaving(false);
   };
 
@@ -671,7 +706,132 @@ export default function HISIntegrationAnalysisPage() {
       await fetch(`/api/his-mapping/field-mappings/${id}`, { method: 'DELETE' });
       fetchData();
       setDeleteMapping(null);
-    } catch { /* ignore */ }
+      toast.success('字段映射已删除');
+    } catch {
+      toast.error('删除字段映射失败');
+    }
+  };
+
+  // Batch operations
+  const handleBatchDelete = async () => {
+    setBatchProcessing(true);
+    try {
+      await Promise.all(
+        Array.from(selectedMappingIds).map(id =>
+          fetch(`/api/his-mapping/field-mappings/${id}`, { method: 'DELETE' })
+        )
+      );
+      toast.success(`已批量删除 ${selectedMappingIds.size} 个字段映射`);
+      setSelectedMappingIds(new Set());
+      fetchData();
+    } catch {
+      toast.error('批量删除失败');
+    }
+    setBatchProcessing(false);
+  };
+
+  const handleBatchToggleStatus = async (enable: boolean) => {
+    setBatchProcessing(true);
+    try {
+      await Promise.all(
+        Array.from(selectedMappingIds).map(id =>
+          fetch(`/api/his-mapping/field-mappings/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: enable ? 1 : 0 }),
+          })
+        )
+      );
+      toast.success(`已${enable ? '启用' : '禁用'} ${selectedMappingIds.size} 个字段映射`);
+      setSelectedMappingIds(new Set());
+      fetchData();
+    } catch {
+      toast.error(`批量${enable ? '启用' : '禁用'}失败`);
+    }
+    setBatchProcessing(false);
+  };
+
+  // CSV Export
+  const handleExportCSV = (ids?: Set<string>) => {
+    const fieldsToExport = ids
+      ? currentFields.filter(f => ids.has(f.id))
+      : currentFields;
+    const headers = ['系统字段', '系统标签', '数据类型', '长度', '必填', 'HIS字段', 'HIS表名', '转换规则', '特殊逻辑', '校验规则', '一致性风险'];
+    const rows = fieldsToExport.map(f => [
+      f.systemField, f.systemLabel, f.dataType, String(f.length),
+      f.required ? '是' : '否', f.hisField || '', f.hisTable || '',
+      f.transformRule || '', f.specialLogic || '', f.validationRule || '', f.consistencyRisk || '',
+    ]);
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `字段映射_${selectedScenario}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${fieldsToExport.length} 条字段映射`);
+  };
+
+  // Health check
+  const handleHealthCheck = () => {
+    setHealthCheckLoading(true);
+    setHealthCheckOpen(true);
+
+    // Use setTimeout to allow the UI to update before running the analysis
+    setTimeout(() => {
+      const issues: Array<{ severity: string; category: string; description: string; field: string; scenario: string }> = [];
+      const allScenarios = data?.businessScenarios || [];
+
+      for (const scenario of allScenarios) {
+        const fields = data?.fieldMappings[scenario.id] || [];
+        for (const field of fields) {
+          // Check 1: Required field without HIS mapping
+          if (field.required && !field.hisField) {
+            issues.push({
+              severity: '高', category: '必填字段未映射',
+              description: `必填字段 "${field.systemLabel}" 未配置HIS对应字段`,
+              field: field.systemField, scenario: scenario.name,
+            });
+          }
+          // Check 2: Consistency risk
+          if (field.consistencyRisk) {
+            issues.push({
+              severity: '中', category: '一致性风险',
+              description: field.consistencyRisk,
+              field: field.systemField, scenario: scenario.name,
+            });
+          }
+          // Check 3: Missing validation rule for required field
+          if (field.required && !field.validationRule) {
+            issues.push({
+              severity: '中', category: '缺少校验规则',
+              description: `必填字段 "${field.systemLabel}" 缺少校验规则`,
+              field: field.systemField, scenario: scenario.name,
+            });
+          }
+          // Check 4: Mapped field without transform rule (non-trivial)
+          if (field.hisField && !field.transformRule && (field.dataType === 'DateTime' || field.dataType === 'Enum')) {
+            issues.push({
+              severity: '低', category: '缺少转换规则',
+              description: `${field.dataType}类型字段 "${field.systemLabel}" 已映射但缺少转换规则`,
+              field: field.systemField, scenario: scenario.name,
+            });
+          }
+        }
+      }
+
+      // Calculate health score
+      const totalFields = Object.values(data?.fieldMappings || {}).flat().length;
+      const highIssues = issues.filter(i => i.severity === '高').length;
+      const medIssues = issues.filter(i => i.severity === '中').length;
+      const lowIssues = issues.filter(i => i.severity === '低').length;
+      const deduction = highIssues * 10 + medIssues * 5 + lowIssues * 2;
+      const score = Math.max(0, Math.min(100, 100 - deduction));
+
+      setHealthCheckResult({ score, issues });
+      setHealthCheckLoading(false);
+    }, 100);
   };
 
   // Conversion rule test
@@ -793,6 +953,10 @@ export default function HISIntegrationAnalysisPage() {
             {hisConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
             {hisConnected ? 'HIS已连接' : 'HIS连接断开'}
           </div>
+          <Button variant="outline" size="sm" onClick={handleHealthCheck} className="h-8 text-xs border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20">
+            <Heart size={14} className="mr-1.5" />
+            健康检查
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchData()} className="h-8 text-xs">
             <RefreshCw size={14} className="mr-1.5" />
             刷新
@@ -826,6 +990,10 @@ export default function HISIntegrationAnalysisPage() {
           <TabsTrigger value="mapping" className="text-xs sm:text-sm">
             字段映射详情
             <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">{summary.totalFieldMappings}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="mapping-diagram" className="text-xs sm:text-sm">
+            <Network size={14} className="mr-1" />
+            映射关系图
           </TabsTrigger>
           <TabsTrigger value="conversion" className="text-xs sm:text-sm">
             数据格式转换
@@ -913,7 +1081,7 @@ export default function HISIntegrationAnalysisPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">选择业务场景:</span>
-                <Select value={selectedScenario} onValueChange={setSelectedScenario}>
+                <Select value={selectedScenario} onValueChange={(v) => { setSelectedScenario(v); setSelectedMappingIds(new Set()); }}>
                   <SelectTrigger className="w-[240px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -957,8 +1125,70 @@ export default function HISIntegrationAnalysisPage() {
                   <Plus size={14} className="mr-1" />
                   新增字段映射
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportCSV()}
+                  className="h-8 text-xs"
+                >
+                  <Download size={14} className="mr-1" />
+                  导出CSV
+                </Button>
               </div>
             </div>
+
+            {/* Batch action bar */}
+            {selectedMappingIds.size > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                  已选择 {selectedMappingIds.size} 项
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBatchToggleStatus(true)}
+                  disabled={batchProcessing}
+                  className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400"
+                >
+                  批量启用
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBatchToggleStatus(false)}
+                  disabled={batchProcessing}
+                  className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
+                >
+                  批量禁用
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportCSV(selectedMappingIds)}
+                  disabled={batchProcessing}
+                  className="h-7 text-xs border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-400"
+                >
+                  <Download size={12} className="mr-1" />导出选中
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={batchProcessing}
+                  className="h-7 text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+                >
+                  <Trash2 size={12} className="mr-1" />批量删除
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedMappingIds(new Set())}
+                  className="h-7 text-xs ml-auto"
+                >
+                  取消选择
+                </Button>
+              </div>
+            )}
 
             {filteredFields.length === 0 ? (
               <Card className="py-8">
@@ -969,10 +1199,26 @@ export default function HISIntegrationAnalysisPage() {
             ) : (
               <Card className="py-4 gap-0">
                 <ScrollArea className="w-full">
-                  <div className="min-w-[1300px]">
+                  <div className="min-w-[1400px]">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                          <TableHead className="w-[40px] text-xs font-semibold text-center">
+                            <input
+                              type="checkbox"
+                              checked={filteredFields.length > 0 && filteredFields.every(f => selectedMappingIds.has(f.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMappingIds(new Set([...selectedMappingIds, ...filteredFields.map(f => f.id)]));
+                                } else {
+                                  const newSet = new Set(selectedMappingIds);
+                                  filteredFields.forEach(f => newSet.delete(f.id));
+                                  setSelectedMappingIds(newSet);
+                                }
+                              }}
+                              className="rounded border-slate-300 dark:border-slate-600"
+                            />
+                          </TableHead>
                           <TableHead className="w-[120px] text-xs font-semibold">系统字段</TableHead>
                           <TableHead className="w-[100px] text-xs font-semibold">中文名称</TableHead>
                           <TableHead className="w-[80px] text-xs font-semibold">数据类型</TableHead>
@@ -991,9 +1237,22 @@ export default function HISIntegrationAnalysisPage() {
                         {filteredFields.map((field, idx) => (
                           <TableRow
                             key={field.id}
-                            className={`cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors ${idx % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-800/30'}`}
+                            className={`cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors ${idx % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-800/30'} ${selectedMappingIds.has(field.id) ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
                             onClick={() => setEditMapping(field)}
                           >
+                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selectedMappingIds.has(field.id)}
+                                onChange={(e) => {
+                                  const newSet = new Set(selectedMappingIds);
+                                  if (e.target.checked) newSet.add(field.id);
+                                  else newSet.delete(field.id);
+                                  setSelectedMappingIds(newSet);
+                                }}
+                                className="rounded border-slate-300 dark:border-slate-600"
+                              />
+                            </TableCell>
                             <TableCell className="font-mono text-xs text-slate-700 dark:text-slate-300">{field.systemField}</TableCell>
                             <TableCell className="text-xs font-medium text-slate-800 dark:text-slate-200">{field.systemLabel}</TableCell>
                             <TableCell>
@@ -1048,6 +1307,90 @@ export default function HISIntegrationAnalysisPage() {
                 </ScrollArea>
               </Card>
             )}
+          </div>
+        </TabsContent>
+
+        {/* Tab 2b: Mapping Diagram */}
+        <TabsContent value="mapping-diagram">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">选择业务场景:</span>
+                <Select value={selectedScenario} onValueChange={(v) => { setSelectedScenario(v); setSelectedMappingIds(new Set()); }}>
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {businessScenarios.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <span className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full inline-block ${getPriorityDot(s.priority)}`} />
+                          {s.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-emerald-500" />已映射</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-amber-500" />有风险</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-slate-300 dark:bg-slate-600" />未映射</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-red-500" />必填未映射</div>
+              </div>
+            </div>
+
+            {/* Per-scenario mapping stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {businessScenarios.map((scenario) => {
+                const fields = fieldMappings[scenario.id] || [];
+                const total = fields.length;
+                const mapped = fields.filter(f => f.hisField).length;
+                const withRisk = fields.filter(f => f.consistencyRisk).length;
+                const requiredUnmapped = fields.filter(f => f.required && !f.hisField).length;
+                const pct = total > 0 ? Math.round((mapped / total) * 100) : 0;
+                return (
+                  <Card
+                    key={scenario.id}
+                    className={`py-3 gap-2 cursor-pointer transition-all hover:shadow-md ${selectedScenario === scenario.id ? 'ring-2 ring-emerald-500 dark:ring-emerald-400' : ''}`}
+                    onClick={() => { setSelectedScenario(scenario.id); setSelectedMappingIds(new Set()); }}
+                  >
+                    <CardContent className="p-3 pt-0">
+                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">{scenario.name}</div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Progress value={pct} className="h-1.5 flex-1" />
+                        <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">{pct}%</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px]">
+                        <span className="text-emerald-600 dark:text-emerald-400">{mapped}/{total} 映射</span>
+                        {withRisk > 0 && <span className="text-amber-600 dark:text-amber-400">{withRisk} 风险</span>}
+                        {requiredUnmapped > 0 && <span className="text-red-600 dark:text-red-400">{requiredUnmapped} 必填未映射</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* SVG Mapping Diagram */}
+            <Card className="py-4 gap-3">
+              <CardHeader className="pb-0 px-4">
+                <div className="flex items-center gap-2">
+                  <Network size={18} className="text-emerald-600 dark:text-emerald-400" />
+                  <CardTitle className="text-base">字段映射关系图 - {businessScenarios.find(s => s.id === selectedScenario)?.name}</CardTitle>
+                </div>
+                <CardDescription>系统字段与HIS字段的映射关系可视化</CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 pb-2">
+                <ScrollArea className="w-full">
+                  <MappingDiagram
+                    fields={currentFields}
+                    scenarioName={businessScenarios.find(s => s.id === selectedScenario)?.name || ''}
+                    onFieldClick={(field) => setEditMapping(field)}
+                  />
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -1863,7 +2206,239 @@ export default function HISIntegrationAnalysisPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Health Check Dialog */}
+      <Dialog open={healthCheckOpen} onOpenChange={setHealthCheckOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart size={18} className="text-rose-600" />
+              映射健康检查
+            </DialogTitle>
+            <DialogDescription>分析所有字段映射的完整性和风险状况</DialogDescription>
+          </DialogHeader>
+          {healthCheckLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 size={24} className="animate-spin text-emerald-500" />
+            </div>
+          ) : healthCheckResult ? (
+            <div className="space-y-4">
+              {/* Score indicator */}
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                <div className="relative">
+                  <svg width="80" height="80" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="6" className="text-slate-200 dark:text-slate-700" />
+                    <circle cx="40" cy="40" r="35" fill="none" strokeWidth="6" strokeLinecap="round"
+                      className={healthCheckResult.score >= 80 ? 'text-emerald-500' : healthCheckResult.score >= 60 ? 'text-amber-500' : 'text-red-500'}
+                      stroke="currentColor"
+                      strokeDasharray={`${(healthCheckResult.score / 100) * 220} 220`}
+                      transform="rotate(-90 40 40)"
+                    />
+                    <text x="40" y="45" textAnchor="middle" className={`text-lg font-bold ${healthCheckResult.score >= 80 ? 'fill-emerald-600 dark:fill-emerald-400' : healthCheckResult.score >= 60 ? 'fill-amber-600 dark:fill-amber-400' : 'fill-red-600 dark:fill-red-400'}`}>
+                      {healthCheckResult.score}
+                    </text>
+                  </svg>
+                </div>
+                <div>
+                  <div className={`text-lg font-bold ${healthCheckResult.score >= 80 ? 'text-emerald-700 dark:text-emerald-400' : healthCheckResult.score >= 60 ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'}`}>
+                    {healthCheckResult.score >= 80 ? '健康状态良好' : healthCheckResult.score >= 60 ? '需要关注' : '存在严重问题'}
+                  </div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    发现 {healthCheckResult.issues.length} 个问题
+                    （高 {healthCheckResult.issues.filter(i => i.severity === '高').length}
+                    / 中 {healthCheckResult.issues.filter(i => i.severity === '中').length}
+                    / 低 {healthCheckResult.issues.filter(i => i.severity === '低').length}）
+                  </div>
+                </div>
+              </div>
+
+              {/* Issues grouped by severity */}
+              {['高', '中', '低'].map(severity => {
+                const severityIssues = healthCheckResult.issues.filter(i => i.severity === severity);
+                if (severityIssues.length === 0) return null;
+                return (
+                  <div key={severity}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline" className={`text-xs ${getSeverityBadge(severity)}`}>
+                        {severity}风险 ({severityIssues.length})
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {severityIssues.map((issue, idx) => (
+                        <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${getSeverityColor(issue.severity)}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                {issue.category}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400">
+                                {issue.scenario}
+                              </Badge>
+                              <code className="text-[10px] text-slate-500 dark:text-slate-400">{issue.field}</code>
+                            </div>
+                            <div className="text-xs text-slate-700 dark:text-slate-300 mt-1">{issue.description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {healthCheckResult.issues.length === 0 && (
+                <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
+                  所有字段映射状态正常，未发现问题
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// Mapping Diagram Component
+function MappingDiagram({
+  fields,
+  scenarioName,
+  onFieldClick,
+}: {
+  fields: FieldMapping[];
+  scenarioName: string;
+  onFieldClick: (field: FieldMapping) => void;
+}) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const svgWidth = 900;
+  const rowHeight = 32;
+  const headerHeight = 40;
+  const leftX = 10;
+  const rightX = svgWidth - 10;
+  const midX = svgWidth / 2;
+  const fieldBoxWidth = 180;
+  const svgHeight = Math.max(300, headerHeight + fields.length * rowHeight + 20);
+
+  const getLineColor = (field: FieldMapping) => {
+    if (field.required && !field.hisField) return '#ef4444'; // red for required unmapped
+    if (!field.hisField) return '#cbd5e1'; // gray for unmapped
+    if (field.consistencyRisk) return '#f59e0b'; // amber for risk
+    return '#10b981'; // emerald for mapped
+  };
+
+  const getLineColorDark = (field: FieldMapping) => {
+    if (field.required && !field.hisField) return '#f87171';
+    if (!field.hisField) return '#475569';
+    if (field.consistencyRisk) return '#fbbf24';
+    return '#34d399';
+  };
+
+  return (
+    <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full" style={{ minWidth: svgWidth }}>
+      {/* Background */}
+      <rect x="0" y="0" width={svgWidth} height={svgHeight} rx="8" className="fill-white dark:fill-slate-900" />
+
+      {/* Headers */}
+      <rect x={leftX} y="5" width={fieldBoxWidth} height="28" rx="4" className="fill-emerald-100 dark:fill-emerald-900/40" />
+      <text x={leftX + fieldBoxWidth / 2} y="24" textAnchor="middle" className="text-xs font-semibold fill-emerald-700 dark:fill-emerald-400">系统字段</text>
+
+      <rect x={rightX - fieldBoxWidth} y="5" width={fieldBoxWidth} height="28" rx="4" className="fill-purple-100 dark:fill-purple-900/40" />
+      <text x={rightX - fieldBoxWidth / 2} y="24" textAnchor="middle" className="text-xs font-semibold fill-purple-700 dark:fill-purple-400">HIS字段</text>
+
+      {/* Center label */}
+      <text x={midX} y="24" textAnchor="middle" className="text-[10px] fill-slate-400 dark:fill-slate-500">{scenarioName}</text>
+
+      {/* Connection lines */}
+      {fields.map((field, idx) => {
+        const y = headerHeight + idx * rowHeight + rowHeight / 2;
+        const leftEdge = leftX + fieldBoxWidth;
+        const rightEdge = rightX - fieldBoxWidth;
+        const isHovered = hoveredIdx === idx;
+        const lineColor = typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? getLineColorDark(field) : getLineColor(field);
+        return (
+          <g key={`line-${field.id}`}>
+            <path
+              d={`M ${leftEdge} ${y} C ${leftEdge + 80} ${y}, ${rightEdge - 80} ${y}, ${rightEdge} ${y}`}
+              fill="none"
+              stroke={lineColor}
+              strokeWidth={isHovered ? 2.5 : 1.5}
+              strokeDasharray={field.hisField ? 'none' : '4,3'}
+              opacity={isHovered ? 1 : 0.7}
+              className="cursor-pointer transition-all"
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onClick={() => onFieldClick(field)}
+            />
+            {isHovered && field.transformRule && (
+              <g>
+                <rect x={midX - 70} y={y - 22} width="140" height="18" rx="4" className="fill-slate-800 dark:fill-slate-200" />
+                <text x={midX} y={y - 10} textAnchor="middle" className="text-[9px] fill-white dark:fill-slate-900">
+                  {field.transformRule.length > 16 ? field.transformRule.substring(0, 16) + '...' : field.transformRule}
+                </text>
+              </g>
+            )}
+          </g>
+        );
+      })}
+
+      {/* System field labels */}
+      {fields.map((field, idx) => {
+        const y = headerHeight + idx * rowHeight + rowHeight / 2;
+        const isHovered = hoveredIdx === idx;
+        const hasIssue = field.required && !field.hisField;
+        return (
+          <g key={`sys-${field.id}`} className="cursor-pointer" onClick={() => onFieldClick(field)} onMouseEnter={() => setHoveredIdx(idx)} onMouseLeave={() => setHoveredIdx(null)}>
+            <rect x={leftX} y={y - 12} width={fieldBoxWidth} height="24" rx="4"
+              className={isHovered ? 'fill-emerald-50 dark:fill-emerald-900/30' : hasIssue ? 'fill-red-50 dark:fill-red-900/20' : 'fill-slate-50 dark:fill-slate-800/50'}
+              stroke={isHovered ? '#10b981' : hasIssue ? '#ef4444' : '#e2e8f0'}
+              strokeWidth="0.5"
+            />
+            <text x={leftX + 8} y={y + 1} className="text-[10px] font-medium fill-slate-700 dark:fill-slate-300">
+              {field.systemLabel}
+            </text>
+            <text x={leftX + 8} y={y + 10} className="text-[8px] font-mono fill-slate-400 dark:fill-slate-500">
+              {field.systemField}
+            </text>
+            {field.required && (
+              <circle cx={leftX + fieldBoxWidth - 8} cy={y} r="3" fill="#ef4444" />
+            )}
+          </g>
+        );
+      })}
+
+      {/* HIS field labels */}
+      {fields.map((field, idx) => {
+        const y = headerHeight + idx * rowHeight + rowHeight / 2;
+        const isHovered = hoveredIdx === idx;
+        const isMapped = !!field.hisField;
+        return (
+          <g key={`his-${field.id}`} className="cursor-pointer" onClick={() => onFieldClick(field)} onMouseEnter={() => setHoveredIdx(idx)} onMouseLeave={() => setHoveredIdx(null)}>
+            <rect x={rightX - fieldBoxWidth} y={y - 12} width={fieldBoxWidth} height="24" rx="4"
+              className={isHovered ? 'fill-purple-50 dark:fill-purple-900/30' : isMapped ? 'fill-slate-50 dark:fill-slate-800/50' : 'fill-slate-100/50 dark:fill-slate-800/20'}
+              stroke={isHovered ? '#8b5cf6' : '#e2e8f0'}
+              strokeWidth="0.5"
+            />
+            {isMapped ? (
+              <>
+                <text x={rightX - fieldBoxWidth + 8} y={y + 1} className="text-[10px] font-medium fill-purple-700 dark:fill-purple-400">
+                  {field.hisField}
+                </text>
+                {field.hisTable && (
+                  <text x={rightX - fieldBoxWidth + 8} y={y + 10} className="text-[8px] font-mono fill-slate-400 dark:fill-slate-500">
+                    {field.hisTable}
+                  </text>
+                )}
+              </>
+            ) : (
+              <text x={rightX - fieldBoxWidth + 8} y={y + 3} className="text-[10px] fill-slate-400 dark:fill-slate-600 italic">
+                未映射
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 

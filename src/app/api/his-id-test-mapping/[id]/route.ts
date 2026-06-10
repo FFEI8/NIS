@@ -5,9 +5,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const item = await db.hisInfectiousDiseaseTestMapping.findUnique({ where: { id } });
-    if (!item) {
-      return NextResponse.json({ success: false, message: '记录不存在' }, { status: 404 });
-    }
+    if (!item) return NextResponse.json({ success: false, message: '未找到该映射记录' }, { status: 404 });
     return NextResponse.json({ success: true, data: item });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
@@ -29,7 +27,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
     await db.hisInfectiousDiseaseTestMapping.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: '删除成功' });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }

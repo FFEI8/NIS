@@ -41,6 +41,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --animate-float-particle: float-particle 20s ease-in-out infinite;
 }
 
 :root {
@@ -119,4 +120,183 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ============ Custom Scrollbar ============ */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
+  border: none;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.5);
+}
+
+/* Dark mode scrollbar */
+.dark .scrollbar-thin {
+  scrollbar-color: rgba(71, 85, 105, 0.4) transparent;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(71, 85, 105, 0.4);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(71, 85, 105, 0.6);
+}
+
+/* Global scrollbar for body/main */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+
+.dark * {
+  scrollbar-color: rgba(71, 85, 105, 0.3) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(71, 85, 105, 0.3);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(71, 85, 105, 0.5);
+}
+
+/* ============ Focus States for Accessibility ============ */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============ Page Transition Animation ============ */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 150ms ease-in;
+}
+
+/* ============ Floating Particles Animation ============ */
+@keyframes float-particle {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.15;
+  }
+  25% {
+    transform: translate(10px, -20px) scale(1.2);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(-5px, -35px) scale(0.9);
+    opacity: 0.2;
+  }
+  75% {
+    transform: translate(15px, -15px) scale(1.1);
+    opacity: 0.15;
+  }
+}
+
+/* ============ Loading Bar ============ */
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #10b981, #14b8a6, #06b6d4);
+  z-index: 9999;
+  transition: width 0.3s ease-out;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.loading-bar.active {
+  width: 70%;
+}
+
+.loading-bar.complete {
+  width: 100%;
+  opacity: 0;
+  transition: width 0.2s ease-out, opacity 0.3s ease-out 0.2s;
+}
+
+/* ============ Smooth focus ring for interactive elements ============ */
+[role="button"],
+button:not(:disabled),
+a {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+/* ============ Keyboard shortcut badge ============ */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background-color: rgba(241, 245, 249, 0.8);
+  color: rgba(100, 116, 139, 0.8);
+  line-height: 1.2;
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.2);
+}
+
+.dark kbd {
+  border-color: rgba(71, 85, 105, 0.4);
+  background-color: rgba(30, 41, 59, 0.8);
+  color: rgba(148, 163, 184, 0.7);
+  box-shadow: 0 1px 0 rgba(71, 85, 105, 0.3);
 }

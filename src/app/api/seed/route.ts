@@ -90,6 +90,14 @@ export async function POST() {
       { code: 'micro:lab:add', name: '新增微生物检验', type: 'button', module: '感染监测' },
       { code: 'micro:lab:import', name: '导入微生物数据', type: 'button', module: '感染监测' },
       { code: 'integration:his:view', name: 'HIS对接分析', type: 'menu', module: '系统集成' },
+      { code: 'id:test-item:list', name: '检验项目列表', type: 'menu', module: '传染病管理' },
+      { code: 'id:test-item:add', name: '新增检验项目', type: 'button', module: '传染病管理' },
+      { code: 'id:test-item:edit', name: '编辑检验项目', type: 'button', module: '传染病管理' },
+      { code: 'id:test-item:delete', name: '删除检验项目', type: 'button', module: '传染病管理' },
+      { code: 'his:test-mapping:list', name: 'HIS检验映射列表', type: 'menu', module: '系统集成' },
+      { code: 'his:test-mapping:add', name: '新增HIS检验映射', type: 'button', module: '系统集成' },
+      { code: 'his:test-mapping:edit', name: '编辑HIS检验映射', type: 'button', module: '系统集成' },
+      { code: 'his:test-mapping:delete', name: '删除HIS检验映射', type: 'button', module: '系统集成' },
     ];
     await db.permission.createMany({ data: permissionDefs.map((p, i) => ({ ...p, sort: i })) });
     const allPerms = await db.permission.findMany();
@@ -109,10 +117,12 @@ export async function POST() {
       { name: '症状监测', code: 'id-symptom-surveillance', path: '/infectious-disease/symptom-surveillance', icon: 'Thermometer', type: 'menu', parentCode: 'infectious-disease', sort: 2 },
       { name: '疫情看板', code: 'id-epidemic-dashboard', path: '/infectious-disease/dashboard', icon: 'BarChart3', type: 'menu', parentCode: 'infectious-disease', sort: 3 },
       { name: '传染病预警', code: 'id-disease-alert', path: '/infectious-disease/alert', icon: 'AlertTriangle', type: 'menu', parentCode: 'infectious-disease', sort: 4 },
+      { name: '检验项目配置', code: 'infectious-disease-test-items', path: '/infectious-disease/test-items', icon: 'FlaskConical', type: 'menu', parentCode: 'infectious-disease', sort: 5 },
       { name: '数据分析', code: 'data-analysis', icon: 'BarChart3', type: 'directory', sort: 3 },
       { name: '统计分析', code: 'data-statistics', path: '/data/statistics', icon: 'PieChart', type: 'menu', parentCode: 'data-analysis', sort: 0 },
       { name: '感染报告', code: 'data-report', path: '/data/reports', icon: 'FileSpreadsheet', type: 'menu', parentCode: 'data-analysis', sort: 1 },
       { name: 'HIS对接分析', code: 'his-integration', path: '/integration/his-analysis', icon: 'GitMerge', type: 'menu', parentCode: 'data-analysis', sort: 2 },
+      { name: 'HIS检验映射', code: 'his-test-mapping', path: '/integration/his-test-mapping', icon: 'ArrowLeftRight', type: 'menu', parentCode: 'data-analysis', sort: 3 },
       { name: '环境监测', code: 'env-monitor', icon: 'ShieldCheck', type: 'directory', sort: 4 },
       { name: '环境卫生', code: 'env-hygiene', path: '/env/hygiene', icon: 'Droplets', type: 'menu', parentCode: 'env-monitor', sort: 0 },
       { name: '消毒灭菌', code: 'env-sterilization', path: '/env/sterilization', icon: 'Flame', type: 'menu', parentCode: 'env-monitor', sort: 1 },
@@ -145,9 +155,9 @@ export async function POST() {
     await db.rolePermission.createMany({ data: allPerms.map(p => ({ roleId: superAdmin.id, permissionId: p.id })) });
     await db.roleMenu.createMany({ data: allMenus.map(m => ({ roleId: superAdmin.id, menuId: m.id })) });
 
-    const icPerms = allPerms.filter(p => /^(infection:|id:|warning:|micro:|system:role:|system:menu:|integration:)/.test(p.code)).map(p => p.id);
+    const icPerms = allPerms.filter(p => /^(infection:|id:|warning:|micro:|system:role:|system:menu:|integration:|his:)/.test(p.code)).map(p => p.id);
     await db.rolePermission.createMany({ data: icPerms.map(pid => ({ roleId: infectionCtrl.id, permissionId: pid })) });
-    const icMenuCodes = ['dashboard','infection-monitor','infection-case','infection-warning','infection-warning-rules','micro-lab-results','infection-target','infectious-disease','id-case-report','id-contact-tracing','id-symptom-surveillance','id-epidemic-dashboard','id-disease-alert','data-analysis','data-statistics','data-report','his-integration','env-monitor','env-hygiene','env-sterilization','occupational-safety','occupational-exposure','hand-hygiene','antibiotic'];
+    const icMenuCodes = ['dashboard','infection-monitor','infection-case','infection-warning','infection-warning-rules','micro-lab-results','infection-target','infectious-disease','id-case-report','id-contact-tracing','id-symptom-surveillance','id-epidemic-dashboard','id-disease-alert','infectious-disease-test-items','data-analysis','data-statistics','data-report','his-integration','his-test-mapping','env-monitor','env-hygiene','env-sterilization','occupational-safety','occupational-exposure','hand-hygiene','antibiotic'];
     await db.roleMenu.createMany({ data: allMenus.filter(m => icMenuCodes.includes(m.code)).map(m => ({ roleId: infectionCtrl.id, menuId: m.id })) });
 
     const cdPerms = allPerms.filter(p => ['infection:case:list','infection:case:add','infection:warning:list','infection:exposure:list','infection:exposure:add','infection:handhygiene:list','id:case:list','id:case:add','id:symptom:list','id:symptom:add','id:dashboard:view'].includes(p.code)).map(p => p.id);
@@ -815,6 +825,30 @@ export async function POST() {
       syncStatus: '已同步',
       syncTime: new Date(),
     })) });
+
+    // === InfectiousDiseaseTestItem Seed Data ===
+    await db.infectiousDiseaseTestItem.createMany({ data: [
+      { testItemCode: 'jyxx2351', testItemName: '乙型肝炎病毒表面抗原（HBsAg）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B16', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '住院隔离', testMethod: '血清学', specimenTypes: '血清,全血', warningLevel: '中', riskNote: '乙肝为乙类传染病，需24小时内报告', sort: 0, status: 1 },
+      { testItemCode: 'jyxx2352', testItemName: '乙型肝炎病毒e抗原（HBeAg）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B16', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '住院隔离', testMethod: '血清学', specimenTypes: '血清', warningLevel: '中', riskNote: 'HBeAg阳性提示病毒复制活跃', sort: 1, status: 1 },
+      { testItemCode: 'jyxx2353', testItemName: '丙型肝炎病毒抗体（Anti-HCV）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B17.1', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, testMethod: '血清学', specimenTypes: '血清', warningLevel: '中', sort: 2, status: 1 },
+      { testItemCode: 'jyxx2354', testItemName: '人类免疫缺陷病毒抗体（Anti-HIV）', positiveResult: 'HIV感染待确定', diseaseName: '艾滋病', diseaseCode: 'B20', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 2, isolationType: '无需隔离', testMethod: '血清学', specimenTypes: '血清,全血', warningLevel: '高', riskNote: 'HIV初筛阳性需送确证实验室，甲类管理要求2小时报告', sort: 3, status: 1 },
+      { testItemCode: 'jyxx2355', testItemName: '梅毒螺旋体抗体（TP-Ab）', positiveResult: '阳性', diseaseName: '梅毒', diseaseCode: 'A51', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, testMethod: '血清学', specimenTypes: '血清', warningLevel: '中', sort: 4, status: 1 },
+      { testItemCode: 'jyxx2356', testItemName: '新型冠状病毒核酸检测（SARS-CoV-2 RNA）', positiveResult: '阳性', diseaseName: '新型冠状病毒感染', diseaseCode: 'U07.1', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 2, isolationType: '集中隔离', testMethod: '核酸检测', specimenTypes: '咽拭子,痰液', warningLevel: '高', riskNote: '新冠为乙类但甲类管理，2小时内报告', sort: 5, status: 1 },
+      { testItemCode: 'jyxx2357', testItemName: '结核杆菌DNA检测', positiveResult: '阳性', diseaseName: '肺结核', diseaseCode: 'A15.0', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '居家隔离', testMethod: '核酸检测', specimenTypes: '痰液', warningLevel: '中', sort: 6, status: 1 },
+      { testItemCode: 'jyxx2358', testItemName: '淋球菌培养', positiveResult: '培养出淋球菌奈瑟氏菌生长', diseaseName: '淋病', diseaseCode: 'A54', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, testMethod: '培养', specimenTypes: '分泌物', warningLevel: '中', sort: 7, status: 1 },
+    ] });
+
+    // === HisInfectiousDiseaseTestMapping Seed Data ===
+    await db.hisInfectiousDiseaseTestMapping.createMany({ data: [
+      { hisTestCode: 'HIS-HBV-PANEL', hisTestName: '乙肝五项检测', subItemNo: 1, testItemCode: 'jyxx2351', testItemName: '乙型肝炎病毒表面抗原（HBsAg）', transformRule: 'HIS阳性/阴性→系统阳性/阴性', specialLogic: 'HIS组合项目中第1子项对应HBsAg', consistencyRisk: 'HIS组合项目与系统单项的对应关系需确认', sort: 0, status: 1 },
+      { hisTestCode: 'HIS-HBV-PANEL', hisTestName: '乙肝五项检测', subItemNo: 3, testItemCode: 'jyxx2352', testItemName: '乙型肝炎病毒e抗原（HBeAg）', transformRule: 'HIS阳性/阴性→系统阳性/阴性', specialLogic: 'HIS组合项目中第3子项对应HBeAg', consistencyRisk: '子项序号映射关系需定期核对', sort: 1, status: 1 },
+      { hisTestCode: 'HIS-HCV-AB', hisTestName: '丙肝抗体检测', subItemNo: 1, testItemCode: 'jyxx2353', testItemName: '丙型肝炎病毒抗体（Anti-HCV）', transformRule: 'HIS Reactive/Non-reactive→系统阳性/阴性', specialLogic: 'HIS使用英文结果，需转换为中文', consistencyRisk: 'HIS结果格式与系统不一致，需转换', sort: 2, status: 1 },
+      { hisTestCode: 'HIS-HIV-AB', hisTestName: 'HIV抗体初筛', subItemNo: 1, testItemCode: 'jyxx2354', testItemName: '人类免疫缺陷病毒抗体（Anti-HIV）', transformRule: 'HIS Reactive→系统HIV感染待确定', specialLogic: 'HIS初筛阳性需自动创建预警', consistencyRisk: '初筛阳性≠确证阳性，需标注待确定', sort: 3, status: 1 },
+      { hisTestCode: 'HIS-TP-AB', hisTestName: '梅毒抗体检测', subItemNo: 1, testItemCode: 'jyxx2355', testItemName: '梅毒螺旋体抗体（TP-Ab）', transformRule: '直接映射', consistencyRisk: '低', sort: 4, status: 1 },
+      { hisTestCode: 'HIS-COVID-PCR', hisTestName: '新冠核酸检测', subItemNo: 1, testItemCode: 'jyxx2356', testItemName: '新型冠状病毒核酸检测（SARS-CoV-2 RNA）', transformRule: 'HIS Detected/Not Detected→系统阳性/阴性', specialLogic: '阳性结果需立即触发甲类管理预警', consistencyRisk: 'HIS结果表述与系统不同，需标准转换', sort: 5, status: 1 },
+      { hisTestCode: 'HIS-TB-DNA', hisTestName: '结核杆菌核酸检测', subItemNo: 1, testItemCode: 'jyxx2357', testItemName: '结核杆菌DNA检测', transformRule: '直接映射', consistencyRisk: '低', sort: 6, status: 1 },
+      { hisTestCode: 'HIS-NG-CULTURE', hisTestName: '淋球菌培养', subItemNo: 1, testItemCode: 'jyxx2358', testItemName: '淋球菌培养', transformRule: 'HIS培养结果→系统阳性判定', specialLogic: 'HIS培养结果描述格式需标准化', consistencyRisk: 'HIS培养结果描述可能不一致', sort: 7, status: 1 },
+    ] });
 
     return NextResponse.json({ success: true, message: '数据库初始化成功', data: { users: 5, roles: 3, permissions: permissionDefs.length, menus: menuDefs.length } });
   } catch (error: any) {
