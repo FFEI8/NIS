@@ -20,6 +20,7 @@ export async function GET() {
 
     // Group field mappings by scenarioId
     const fieldMappings: Record<string, Array<{
+      id: string;
       systemField: string;
       systemLabel: string;
       dataType: string;
@@ -38,6 +39,7 @@ export async function GET() {
         fieldMappings[fm.scenarioId] = [];
       }
       fieldMappings[fm.scenarioId].push({
+        id: fm.id,
         systemField: fm.systemField,
         systemLabel: fm.systemLabel,
         dataType: fm.dataType,
