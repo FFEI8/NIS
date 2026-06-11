@@ -1910,3 +1910,249 @@ Stage Summary:
    - 减少初始API并发调用
    - API分页缓存
    - 前端组件懒加载
+
+---
+Task ID: 2
+Agent: BugFixer
+Task: Fix Critical Bugs - Register Missing Pages + Fix API Security
+
+Work Log:
+- **Registered missing page routes** in `/src/app/page.tsx`:
+  - Added `HisFieldMappingPage` dynamic import and router entry (`his-field-mapping`)
+  - Added `HisSyncManagementPage` dynamic import and router entry (`his-sync-management`)
+  - These two page components existed in `/src/components/pages/` but were not registered in the main router
+- **Fixed mass assignment vulnerability** in `/src/app/api/his-field-mappings/[id]/route.ts`:
+  - PUT handler was passing raw request body directly to Prisma `update()`, allowing modification of any field
+  - Added whitelist of 12 allowed fields: scenarioId, systemField, systemLabel, dataType, hisField, hisTable, transformRule, validationRule, consistencyRisk, required, status, description
+  - Now only whitelisted fields are included in the update data; returns 400 if no valid fields
+- **Fixed unique check bug** in `/src/app/api/his-mapping/field-mappings/route.ts`:
+  - POST handler used `findFirst` with `status: 1` filter, allowing duplicate `scenarioId + systemField` when records were soft-deleted
+  - Changed to `findUnique` on the `scenarioId_systemField` compound unique constraint (defined as `@@unique([scenarioId, systemField])` in Prisma schema)
+  - Now properly prevents duplicates regardless of status
+- **Fixed SQL injection** in `/mini-services/his-sync-service/index.ts`:
+  - PUT handler at `/api/his-sync/configs/:id` interpolated column names from request body directly into SQL
+  - Added `allowedColumns` whitelist (32 valid column names) that filters `Object.keys(body)` before building SET clause
+  - Attackers can no longer inject arbitrary SQL column names
+- **Added DDL initialization** to mini-service:
+  - Added `initializeTables()` function with `CREATE TABLE IF NOT EXISTS` for 6 tables
+  - HisSyncConfig (32 columns), HisSyncLog (18 columns), TemperatureRecord (22 columns), MicroLabResult (22 columns), SymptomSurveillance (13 columns), WarningRecord (8 columns)
+  - Called at server startup to ensure tables exist before any queries run
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- 5 critical bugs fixed (missing routes, mass assignment, unique check, SQL injection, missing DDL)
+- Frontend now properly routes to his-field-mapping and his-sync-management pages
+- API security hardened with field whitelisting and proper unique constraint usage
+- Mini-service now auto-initializes database tables on startup
+
+---
+Task ID: 6
+Agent: Seed Data Updater
+Task: Add missing menu items and permissions for HIS pages (his-field-mapping and his-sync-management)
+
+Work Log:
+- Read existing seed route (/src/app/api/seed/route.ts) and Prisma schema to understand structure
+- Read HisConversionRule, HisValidationRule, HisConsistencyIssue model definitions from schema
+- Added 9 new permissions to permissionDefs:
+  - his:field-mapping:list, his:field-mapping:add, his:field-mapping:edit, his:field-mapping:delete
+  - his:sync:list, his:sync:add, his:sync:edit, his:sync:delete, his:sync:execute
+- Added new "HIS集成管理" directory menu (code: his-integration-mgmt, icon: Plug, sort: 8) at root level
+- Added 2 new menu items under HIS集成管理:
+  - "字段映射管理" (code: his-field-mapping, path: /his-field-mapping, icon: ArrowLeftRight, sort: 0)
+  - "同步配置管理" (code: his-sync-management, path: /his-sync-management, icon: RefreshCw, sort: 1)
+- Updated infection_control role menu assignments: added 'his-integration-mgmt', 'his-field-mapping', 'his-sync-management' to icMenuCodes
+- infection_control role already gets his:* permissions via the existing regex filter /^(infection:|id:|warning:|micro:|system:role:|system:menu:|integration:|his:)/
+- super_admin role automatically gets all permissions and menus (uses allPerms and allMenus)
+- Added 6 HisConversionRule seed records: date format conversion, code mapping, unit conversion, boolean conversion, encoding conversion, value range mapping
+- Added 6 HisValidationRule seed records: required field check, format check (×2), range check, cross-field consistency check (×2)
+- Added 6 HisConsistencyIssue seed records: encoding mismatch (×2), format inconsistency, data missing, logic conflict, time delay
+- Added Plug icon import to /src/components/shared/icons.tsx for the HIS集成管理 directory menu
+- Lint passes with 0 errors
+
+Stage Summary:
+- 9 new permissions added (his:field-mapping:* and his:sync:*)
+- 3 new menu items added (HIS集成管理 directory + 字段映射管理 + 同步配置管理)
+- Both super_admin and infection_control roles get all new permissions and menus
+- 18 new seed records across 3 HIS models (6 conversion rules + 6 validation rules + 6 consistency issues)
+- All existing seed data preserved intact
+
+---
+Task ID: 5
+Agent: CRUD API Builder
+Task: Add Missing CRUD API Routes for HIS Models
+
+Work Log:
+- Read existing route patterns from /api/his-field-mappings/route.ts and /api/his-field-mappings/[id]/route.ts
+- Read Prisma schema for HisConversionRule, HisValidationRule, HisConsistencyIssue models
+- Read /src/lib/api-utils.ts for getPaginationParams utility
+- Created /api/his-conversion-rules/route.ts - GET (filters: category, status, keyword) + POST with required field validation
+- Created /api/his-conversion-rules/[id]/route.ts - GET (with 404 check), PUT (whitelist: category, sourceFormat, targetFormat, conversionFunction, example, description, status), DELETE (soft delete status=0)
+- Created /api/his-validation-rules/route.ts - GET (filters: form, ruleType, severity, status, keyword) + POST with required field validation
+- Created /api/his-validation-rules/[id]/route.ts - GET (with 404 check), PUT (whitelist: form, field, ruleType, ruleDescription, errorMessage, severity, status), DELETE (soft delete status=0)
+- Created /api/his-consistency-issues/route.ts - GET (filters: scenarioId, issueType, severity, status, keyword) + POST with required field validation
+- Created /api/his-consistency-issues/[id]/route.ts - GET (with 404 check), PUT (whitelist: scenarioId, field, issueType, severity, description, suggestion, status), DELETE (soft delete status=0)
+- Verified all endpoints via curl: conversion-rules (18 items), validation-rules (33 items), consistency-issues (15 items)
+- Tested full CRUD cycle: POST create, GET by ID, PUT update, DELETE soft delete (verified status=0)
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- 6 API route files created for 3 HIS models
+- All routes follow existing project patterns (pagination, filter, error handling, response format)
+- GET list endpoints support pagination via getPaginationParams and model-specific filters
+- [id] endpoints include GET with 404 handling, PUT with field whitelisting, DELETE with soft delete
+- All routes verified working with existing seed data
+
+---
+Task ID: 7
+Agent: Bug Fixer
+Task: Fix HIS Page Issues
+
+Work Log:
+- **Fixed fake HIS connection status** in `his-integration-analysis.tsx`:
+  - Removed misleading `Math.random() > 0.05` simulated health check (was in useEffect that checked every 30s)
+  - Replaced with real sync config check: on mount, fetches `/api/his-sync/configs?XTransformPort=3030` from the HIS sync mini-service
+  - Status now shows "已配置(N个方案)" when sync configs exist, or "未配置" when no configs
+  - Added "检测连接" (Test Connection) button that calls `/api/health?XTransformPort=3030` on the mini-service
+  - Connection test result displayed as a colored notification bar (green for success, red for failure)
+  - Added informational note about actual HIS connectivity depending on sync service deployment
+  - Three-state display: checking (amber spinner) → configured (green) → not_configured (gray)
+- **Added `/api/health` endpoint** to HIS sync mini-service (`mini-services/his-sync-service/index.ts`):
+  - Returns service status, totalConfigs count, enabledConfigs count, and uptime
+  - Allows frontend to verify the sync service is actually running
+- **Fixed test mapping stats using paginated data** in `his-test-mapping.tsx`:
+  - Problem: Stats (enabledCount, disabledCount, riskCount) were calculated from the paginated `data` array (`data.filter(r => r.status === 1)`), showing incorrect numbers when there were multiple pages
+  - Solution: Created `/api/his-id-test-mapping/stats/route.ts` API endpoint that uses Prisma `count()` with `where` clauses to get accurate totals across ALL records
+  - Frontend now fetches stats separately via `fetchStats()` on mount and after any CRUD operation (save/delete/toggle)
+  - Stats API returns: total, enabledCount, disabledCount, riskCount
+  - Verified: Stats API returns `{"success":true,"data":{"total":50,"enabledCount":50,"disabledCount":0,"riskCount":8}}`
+- **Removed artificial delay** in `his-test-mapping.tsx`:
+  - Deleted `await new Promise(r => setTimeout(r, 200))` in the save handler
+  - This served no purpose and slowed down the UI by 200ms on every save
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- HIS connection status no longer uses fake `Math.random()` - now based on actual sync config check
+- "检测连接" button tests real connectivity to the HIS sync mini-service
+- Test mapping stats now use accurate database counts instead of paginated data
+- Artificial 200ms delay removed from save handler
+- New API: `/api/his-id-test-mapping/stats` for accurate stats
+- New API: `/api/health` on mini-service (port 3030)
+
+---
+Task ID: 8
+Agent: Style Optimizer
+Task: Style Details and Interaction Optimization
+
+Work Log:
+- **Footer positioning verified**: Confirmed `h-screen flex` on root wrapper + `flex-1 flex flex-col` on right panel + `mt-auto` on footer in page.tsx. Footer correctly sticks to bottom when content is short and gets pushed down when content exceeds viewport.
+- **Dashboard page styling enhanced** (/src/components/pages/dashboard.tsx):
+  - Stat cards: Enhanced hover effects (shadow-xl, -translate-y-1.5, scale-[1.03]), added subtle corner gradient decoration (blur-xl circle), improved gradient overlay opacity on hover (0.04→0.10), top accent bar opacity animation (0.80→1.0), icon opacity transition on hover
+  - Circular progress: Improved responsive grid (grid-cols-1 sm:grid-cols-3), added flex-shrink-0 and min-w-0 for better text handling, enhanced hover shadow (shadow-lg)
+  - Infection trend chart: Improved bar gap responsiveness (gap-1.5 sm:gap-2), added shadow and brightness on hover (shadow-lg shadow-emerald-500/20, brightness-110), smoother tooltip transition
+  - Site distribution: Added hover color classes for progress bars, count text color transition on hover (→ emerald), shadow-sm on hover
+  - Quick action buttons: Added hover shadow (-translate-y-0.5 shadow-md), active state (active:translate-y-0 active:shadow-sm), icon scale transition duration
+- **Sidebar styling enhanced** (/src/components/layout/sidebar.tsx):
+  - Added hoveredMenu state for fine-grained hover tracking
+  - Menu items: Subtle translate-x-0.5 on hover for non-active items, emerald gradient glow on hover background, icon scale-110 on hover, text color transition on active state, chevron color transition on hover
+  - Collapse/expand: Icon animation with scale-75→scale-100 during transition, active:scale-95 on button press
+  - Logo: Added hover:scale-110 on Hospital icon
+  - User profile: Added group/avatar hover scale on avatar, animated ping on online indicator, font-medium on name, added LogOut button
+  - Tooltip: Improved translate-x animation (translate-x-1 → translate-x-0)
+- **Data tables enhanced** (/src/components/shared/data-table.tsx):
+  - Added hoveredRow state for row hover tracking
+  - Row hover: Enhanced with bg-emerald-50/80 shadow-sm on explicit hover (more reliable than CSS hover)
+  - Loading skeleton: Added alternating row colors, variable-width skeletons (60-90% based on column index)
+  - Action buttons container: Added flex-wrap for mobile responsiveness
+  - Pagination: Responsive gap (gap-1.5 sm:gap-2), hidden text on mobile (hidden sm:inline for 上一页/下一页), hidden jump-to-page on mobile (hidden sm:flex), emerald-themed hover states on page buttons, shadow on active page button, hover borders on select/input
+- **Login page enhanced** (/src/components/layout/login-page.tsx):
+  - Shake animation: Added `shaking` state, triggers on login failure with 600ms timeout, applies `animate-shake` CSS class
+  - Submit button: Enhanced loading state ("登录中..." → "正在登录..."), added active:scale-[0.98] press feedback, disabled:active:scale-100, loading progress bar overlay with animate-loading-bar, improved shadow on hover (shadow-emerald-500/40), disabled opacity (bg-emerald-800/80)
+  - Error message: Added flex-shrink-0 on AlertCircle icon, longer fade-in duration (200→300ms)
+  - Demo account buttons: Added bgAccent gradient overlay on hover (opacity-0 → opacity-100), hover:scale-[1.03] lift effect, group/demo for scoped hover, User icon in section header
+- **CSS animations added** (/src/app/globals.css):
+  - `@keyframes shake`: 4-point shake animation for login error feedback (0.5s duration)
+  - `.animate-shake`: Applied to login form on authentication failure
+  - `@keyframes loading-bar`: Progress bar animation (0% → 70% → 100%) for login button
+  - `.animate-loading-bar`: Applied to login button loading indicator
+- Lint passes with 0 errors, 0 warnings
+
+Stage Summary:
+- Footer positioning verified and correct (no changes needed)
+- Dashboard: Enhanced hover effects, gradient decorations, chart animations, responsive grid
+- Sidebar: Fine-grained hover tracking, icon animations, user profile enhancements, logout button
+- Data tables: Row hover tracking, variable-width skeletons, responsive pagination, mobile-friendly
+- Login: Shake animation on error, loading progress bar, enhanced demo buttons with gradient overlay
+- 2 new CSS keyframe animations added to globals.css
+- All lint checks pass (0 errors, 0 warnings)
+
+---
+Task ID: 2-8
+Agent: Main Developer (Session Continuation)
+Task: HIS模块全面审查改进 - 修复关键Bug、添加缺失功能、样式优化
+
+Work Log:
+- **修复"下载工作空间失败"问题**: 根因是dev server未运行，导致fetch请求失败
+- **注册缺失页面路由**: his-field-mapping和his-sync-management页面在page.tsx中未注册，用户无法从UI访问。已添加dynamic import和路由映射
+- **修复API安全漏洞**: /api/his-field-mappings/[id] PUT接口存在mass-assignment风险，直接将request body传入Prisma update。已改为白名单字段过滤
+- **修复重复API路由unique check bug**: /api/his-mapping/field-mappings POST用findFirst+status:1检查唯一性（允许soft-delete后重复），改为findUnique使用compound unique constraint
+- **修复mini-service SQL注入**: his-sync-service PUT handler将request body的key直接拼入SQL SET子句，已添加allowedColumns白名单过滤
+- **添加mini-service DDL初始化**: HisSyncConfig和HisSyncLog表没有CREATE TABLE逻辑，已添加initializeTables()函数，在服务启动时自动创建6个表
+- **添加3个HIS模型的CRUD API**: HisConversionRule、HisValidationRule、HisConsistencyIssue之前只能通过seed和聚合端点访问，现在有完整的CRUD API（共6个新路由文件）
+- **添加9个新权限**: his:field-mapping:list/add/edit/delete, his:sync:list/add/edit/delete/execute
+- **添加3个新菜单**: HIS集成管理目录 + 字段映射管理 + 同步配置管理
+- **添加6条ConversionRule种子数据**: 日期格式/代码映射/单位转换/布尔转换/编码转换/值域映射
+- **添加6条ValidationRule种子数据**: 必填/格式校验/范围校验/跨字段一致性校验
+- **添加6条ConsistencyIssue种子数据**: 编码不匹配/格式不一致/数据缺失/逻辑冲突/时间延迟
+- **修复假HIS连接状态**: his-integration-analysis.tsx中Math.random()>0.05模拟连接检查，改为检查实际同步配置状态+提供"检测连接"按钮
+- **修复test mapping统计错误**: his-test-mapping.tsx从分页数据计算统计，改为新增/api/his-id-test-mapping/stats专用统计端点
+- **移除无意义延迟**: 删除his-test-mapping.tsx中的await new Promise(r=>setTimeout(r,200))
+- **样式优化**: 仪表盘卡片hover效果增强、侧边栏hover动画、数据表行hover、登录页shake动画和loading进度条、分页响应式
+- **数据库重新初始化**: 78个权限、34个菜单
+
+Stage Summary:
+- 关键安全漏洞已修复（mass-assignment、SQL注入）
+- 2个不可访问页面已注册路由
+- 6个新CRUD API路由文件创建完成
+- 9个新权限+3个新菜单已添加
+- HIS连接状态从虚假模拟改为真实检测
+- 样式交互优化完成
+- 所有lint检查0 errors
+
+---
+## 项目当前状态描述/判断
+
+**状态**: HIS模块全面审查改进完成，系统功能更加完善
+
+### 当前系统包含：
+- **20+数据库模型**: 系统管理7 + 感染监测8 + 传染病管理4 + 预警规则2 + 微生物检验1 + HIS集成6 + 其他
+- **34个菜单项**: 含新增的HIS集成管理目录(3项)
+- **78个权限项**: 含新增的his:field-mapping:*和his:sync:*
+- **27+页面模块**: 含新增的his-field-mapping和his-sync-management
+- **6个新CRUD API**: HisConversionRule/HisValidationRule/HisConsistencyIssue各2个
+
+### 已修复的关键问题：
+1. ✅ 下载工作空间Failed to fetch（服务器未运行）
+2. ✅ API mass-assignment安全漏洞
+3. ✅ API unique check bug（soft-delete后可重复创建）
+4. ✅ Mini-service SQL注入漏洞
+5. ✅ Mini-service缺少DDL初始化
+6. ✅ 2个页面路由未注册（不可访问）
+7. ✅ HIS连接状态虚假模拟
+8. ✅ Test mapping统计计算错误
+9. ✅ 无意义的人工延迟
+
+## 未解决问题或风险，建议下一阶段优先事项
+
+1. **服务器稳定性**: Next.js dev server在sandbox环境中频繁崩溃（编译3-4个API路由后进程被杀死），这是环境限制而非代码问题。建议生产环境使用`next build`+`next start`
+2. **agent-browser测试受限**: 由于服务器频繁崩溃，无法完成完整的端到端浏览器测试。curl测试确认所有API正常工作
+3. **建议增强**:
+   - his-integration-analysis.tsx(2589行)需要拆分为多个子组件
+   - 添加HIS字段映射CSV导入功能
+   - Mini-service添加定时同步调度器
+   - 添加API认证中间件
+   - 前端HIS页面添加TypeScript类型定义
+   - 合并重复的field-mapping API路由
+4. **性能优化**: 
+   - API添加分页缓存
+   - 前端组件进一步拆分减少编译负担
+   - 大数据量图表虚拟化

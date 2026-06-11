@@ -108,6 +108,8 @@ const MicroLabResultsPage = dynamicPage(() => import('@/components/pages/micro-l
 const HISIntegrationAnalysisPage = dynamicPage(() => import('@/components/pages/his-integration-analysis'));
 const InfectiousDiseaseTestItemsPage = dynamicPage(() => import('@/components/pages/infectious-disease-test-items'));
 const HisTestMappingPage = dynamicPage(() => import('@/components/pages/his-test-mapping'));
+const HisFieldMappingPage = dynamicPage(() => import('@/components/pages/his-field-mapping'));
+const HisSyncManagementPage = dynamicPage(() => import('@/components/pages/his-sync-management'));
 
 // ============ Content Router ============
 function ContentArea() {
@@ -139,6 +141,8 @@ function ContentArea() {
     'his-integration': <HISIntegrationAnalysisPage />,
     'infectious-disease-test-items': <InfectiousDiseaseTestItemsPage />,
     'his-test-mapping': <HisTestMappingPage />,
+    'his-field-mapping': <HisFieldMappingPage />,
+    'his-sync-management': <HisSyncManagementPage />,
   };
 
   return (

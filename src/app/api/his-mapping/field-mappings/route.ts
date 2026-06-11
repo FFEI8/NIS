@@ -13,12 +13,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check for unique constraint
-    const existing = await db.hisFieldMapping.findFirst({
+    // Check for unique constraint using the compound unique key (includes soft-deleted records)
+    const existing = await db.hisFieldMapping.findUnique({
       where: {
-        scenarioId: body.scenarioId,
-        systemField: body.systemField,
-        status: 1,
+        scenarioId_systemField: {
+          scenarioId: body.scenarioId,
+          systemField: body.systemField,
+        },
       },
     });
 

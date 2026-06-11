@@ -111,6 +111,15 @@ export async function POST() {
       { code: 'his:test-mapping:add', name: '新增HIS检验映射', type: 'button', module: '系统集成' },
       { code: 'his:test-mapping:edit', name: '编辑HIS检验映射', type: 'button', module: '系统集成' },
       { code: 'his:test-mapping:delete', name: '删除HIS检验映射', type: 'button', module: '系统集成' },
+      { code: 'his:field-mapping:list', name: '字段映射列表', type: 'menu', module: '系统集成' },
+      { code: 'his:field-mapping:add', name: '新增字段映射', type: 'button', module: '系统集成' },
+      { code: 'his:field-mapping:edit', name: '编辑字段映射', type: 'button', module: '系统集成' },
+      { code: 'his:field-mapping:delete', name: '删除字段映射', type: 'button', module: '系统集成' },
+      { code: 'his:sync:list', name: '同步配置列表', type: 'menu', module: '系统集成' },
+      { code: 'his:sync:add', name: '新增同步配置', type: 'button', module: '系统集成' },
+      { code: 'his:sync:edit', name: '编辑同步配置', type: 'button', module: '系统集成' },
+      { code: 'his:sync:delete', name: '删除同步配置', type: 'button', module: '系统集成' },
+      { code: 'his:sync:execute', name: '执行同步', type: 'button', module: '系统集成' },
     ];
     await db.permission.createMany({ data: permissionDefs.map((p, i) => ({ ...p, sort: i })) });
     const allPerms = await db.permission.findMany();
@@ -136,6 +145,9 @@ export async function POST() {
       { name: '感染报告', code: 'data-report', path: '/data/reports', icon: 'FileSpreadsheet', type: 'menu', parentCode: 'data-analysis', sort: 1 },
       { name: 'HIS对接分析', code: 'his-integration', path: '/integration/his-analysis', icon: 'GitMerge', type: 'menu', parentCode: 'data-analysis', sort: 2 },
       { name: 'HIS检验映射', code: 'his-test-mapping', path: '/integration/his-test-mapping', icon: 'ArrowLeftRight', type: 'menu', parentCode: 'data-analysis', sort: 3 },
+      { name: 'HIS集成管理', code: 'his-integration-mgmt', icon: 'Plug', type: 'directory', sort: 8 },
+      { name: '字段映射管理', code: 'his-field-mapping', path: '/his-field-mapping', icon: 'ArrowLeftRight', type: 'menu', parentCode: 'his-integration-mgmt', sort: 0 },
+      { name: '同步配置管理', code: 'his-sync-management', path: '/his-sync-management', icon: 'RefreshCw', type: 'menu', parentCode: 'his-integration-mgmt', sort: 1 },
       { name: '环境监测', code: 'env-monitor', icon: 'ShieldCheck', type: 'directory', sort: 4 },
       { name: '环境卫生', code: 'env-hygiene', path: '/env/hygiene', icon: 'Droplets', type: 'menu', parentCode: 'env-monitor', sort: 0 },
       { name: '消毒灭菌', code: 'env-sterilization', path: '/env/sterilization', icon: 'Flame', type: 'menu', parentCode: 'env-monitor', sort: 1 },
@@ -170,7 +182,7 @@ export async function POST() {
 
     const icPerms = allPerms.filter(p => /^(infection:|id:|warning:|micro:|system:role:|system:menu:|integration:|his:)/.test(p.code)).map(p => p.id);
     await db.rolePermission.createMany({ data: icPerms.map(pid => ({ roleId: infectionCtrl.id, permissionId: pid })) });
-    const icMenuCodes = ['dashboard','infection-monitor','infection-case','infection-warning','infection-warning-rules','micro-lab-results','infection-target','infectious-disease','id-case-report','id-contact-tracing','id-symptom-surveillance','id-epidemic-dashboard','id-disease-alert','infectious-disease-test-items','data-analysis','data-statistics','data-report','his-integration','his-test-mapping','env-monitor','env-hygiene','env-sterilization','occupational-safety','occupational-exposure','hand-hygiene','antibiotic'];
+    const icMenuCodes = ['dashboard','infection-monitor','infection-case','infection-warning','infection-warning-rules','micro-lab-results','infection-target','infectious-disease','id-case-report','id-contact-tracing','id-symptom-surveillance','id-epidemic-dashboard','id-disease-alert','infectious-disease-test-items','data-analysis','data-statistics','data-report','his-integration','his-test-mapping','his-integration-mgmt','his-field-mapping','his-sync-management','env-monitor','env-hygiene','env-sterilization','occupational-safety','occupational-exposure','hand-hygiene','antibiotic'];
     await db.roleMenu.createMany({ data: allMenus.filter(m => icMenuCodes.includes(m.code)).map(m => ({ roleId: infectionCtrl.id, menuId: m.id })) });
 
     const cdPerms = allPerms.filter(p => ['infection:case:list','infection:case:add','infection:warning:list','infection:exposure:list','infection:exposure:add','infection:handhygiene:list','id:case:list','id:case:add','id:symptom:list','id:symptom:add','id:dashboard:view'].includes(p.code)).map(p => p.id);
@@ -868,6 +880,36 @@ export async function POST() {
       { hisTestCode: 'HIS-COVID-PCR', hisTestName: '新冠核酸检测', subItemNo: 1, testItemCode: 'jyxx2356', testItemName: '新型冠状病毒核酸检测（SARS-CoV-2 RNA）', transformRule: 'HIS Detected/Not Detected→系统阳性/阴性', specialLogic: '阳性结果需立即触发甲类管理预警', consistencyRisk: 'HIS结果表述与系统不同，需标准转换', sort: 5, status: 1 },
       { hisTestCode: 'HIS-TB-DNA', hisTestName: '结核杆菌核酸检测', subItemNo: 1, testItemCode: 'jyxx2357', testItemName: '结核杆菌DNA检测', transformRule: '直接映射', consistencyRisk: '低', sort: 6, status: 1 },
       { hisTestCode: 'HIS-NG-CULTURE', hisTestName: '淋球菌培养', subItemNo: 1, testItemCode: 'jyxx2358', testItemName: '淋球菌培养', transformRule: 'HIS培养结果→系统阳性判定', specialLogic: 'HIS培养结果描述格式需标准化', consistencyRisk: 'HIS培养结果描述可能不一致', sort: 7, status: 1 },
+    ] });
+
+    // === HisConversionRule Seed Data ===
+    await db.hisConversionRule.createMany({ data: [
+      { category: '日期格式转换', sourceFormat: 'YYYYMMDDHHmmss', targetFormat: 'YYYY-MM-DD HH:mm:ss', conversionFunction: "datetime_format(value, 'YYYYMMDDHHmmss', 'YYYY-MM-DD HH:mm:ss')", example: '20240115143000 → 2024-01-15 14:30:00', sort: 0, status: 1 },
+      { category: '代码映射', sourceFormat: 'HIS性别代码(1/2/0)', targetFormat: '院感系统枚举(男/女/未知)', conversionFunction: "dict_map('SEX_CODE', value)", example: '1 → 男, 2 → 女, 0 → 未知', sort: 1, status: 1 },
+      { category: '单位转换', sourceFormat: 'μg/ml', targetFormat: 'mg/L', conversionFunction: 'value * 0.001', example: '500 μg/ml → 0.5 mg/L', sort: 2, status: 1 },
+      { category: '布尔转换', sourceFormat: 'HIS标志位(Y/N)', targetFormat: '系统布尔值(true/false)', conversionFunction: "bool_convert(value, 'Y', 'N')", example: 'Y → true, N → false', sort: 3, status: 1 },
+      { category: '编码转换', sourceFormat: 'HIS科室编码(4位数字)', targetFormat: '院感科室名称', conversionFunction: "dict_map('DEPT_CODE', value)", example: '1001 → ICU, 2003 → 外科', sort: 4, status: 1 },
+      { category: '值域映射', sourceFormat: 'HIS诊断类型(1/2/3)', targetFormat: '院感感染类型(院内感染/社区感染/待定)', conversionFunction: "dict_map('DIAG_TYPE', value)", example: '1 → 院内感染, 2 → 社区感染, 3 → 待定', sort: 5, status: 1 },
+    ] });
+
+    // === HisValidationRule Seed Data ===
+    await db.hisValidationRule.createMany({ data: [
+      { form: 'infection-case', field: 'patientId', ruleType: 'required', ruleDescription: '患者编号为必填项，HIS同步时不能为空', errorMessage: '患者编号不能为空', severity: '高', sort: 0, status: 1 },
+      { form: 'infection-case', field: 'admissionDate', ruleType: 'pattern', ruleDescription: '入院日期必须符合日期格式，且不晚于当前日期', errorMessage: '入院日期格式不正确或晚于当前日期', severity: '高', sort: 1, status: 1 },
+      { form: 'infection-case', field: 'age', ruleType: 'range', ruleDescription: '年龄必须在0-150之间', errorMessage: '年龄超出有效范围(0-150)', severity: '中', sort: 2, status: 1 },
+      { form: 'infection-case', field: 'infectionDate', ruleType: 'cross-field', ruleDescription: '感染日期必须晚于入院日期48小时以上（院内感染判定）', errorMessage: '感染日期与入院日期间隔不足48小时，不符合院内感染判定', severity: '高', sort: 3, status: 1 },
+      { form: 'infectious-disease', field: 'idCard', ruleType: 'pattern', ruleDescription: '身份证号必须为18位且校验位正确', errorMessage: '身份证号格式不正确或校验位错误', severity: '高', sort: 4, status: 1 },
+      { form: 'infectious-disease', field: 'reportDate', ruleType: 'cross-field', ruleDescription: '报告日期不能早于诊断日期', errorMessage: '报告日期不能早于诊断日期', severity: '中', sort: 5, status: 1 },
+    ] });
+
+    // === HisConsistencyIssue Seed Data ===
+    await db.hisConsistencyIssue.createMany({ data: [
+      { scenarioId: 'infection-case', field: 'patientId', issueType: '编码不匹配', severity: '高', description: 'HIS住院号与院感系统患者ID编码规则不一致，HIS使用8位数字，院感系统使用P+8位数字前缀', hisSystem: 'HIS住院系统', impactScope: '所有感染病例的关联查询', suggestion: '建立统一的病人主索引(EMPI)，实现跨系统患者标识映射', sort: 0, status: 1 },
+      { scenarioId: 'infection-case', field: 'admissionDate', issueType: '格式不一致', severity: '中', description: 'HIS日期存储格式为YYYYMMDDHHmmss字符串，院感系统使用ISO 8601格式，转换过程中可能丢失时分秒精度', hisSystem: 'HIS住院系统', impactScope: '感染时间判定和48小时规则计算', suggestion: '统一使用ISO 8601日期格式，保留完整时间精度', sort: 1, status: 1 },
+      { scenarioId: 'infection-case', field: 'dept', issueType: '编码不匹配', severity: '高', description: 'HIS科室编码发生变更后，映射表未及时同步更新，导致历史数据中科室信息无法正确关联', hisSystem: 'HIS住院系统', impactScope: '科室感染率统计和聚集性感染分析', suggestion: '建立科室编码版本管理机制，映射表支持生效日期和失效日期', sort: 2, status: 1 },
+      { scenarioId: 'infectious-disease', field: 'pathogen', issueType: '数据缺失', severity: '中', description: 'LIS系统菌名标准与院感系统菌名标准存在缩写差异，部分菌名在映射字典中无对应项', hisSystem: 'LIS检验系统', impactScope: '病原体统计分析和MDRO检出率计算', suggestion: '补充菌名映射字典，覆盖所有LIS可能的菌名缩写变体', sort: 3, status: 1 },
+      { scenarioId: 'infection-case', field: 'gender', issueType: '逻辑冲突', severity: '低', description: 'HIS性别代码映射不完整，新增的9(未说明)和X(其他)代码在院感系统枚举中无对应值', hisSystem: 'HIS住院系统', impactScope: '性别统计维度的数据完整性', suggestion: '扩展院感系统性别枚举值，增加"其他"和"未说明"选项', sort: 4, status: 1 },
+      { scenarioId: 'infectious-disease', field: 'reportDate', issueType: '时效偏差', severity: '高', description: 'HIS系统诊断时间与院感系统报告时间存在时间差，甲类传染病可能超过2小时法定报告时限', hisSystem: 'HIS门诊/住院系统', impactScope: '法定传染病报告时效合规性', suggestion: '实现HIS诊断信息实时推送，缩短诊断到报告的时间差', sort: 5, status: 1 },
     ] });
 
     return NextResponse.json({ success: true, message: '数据库初始化成功', data: { users: 5, roles: 3, permissions: permissionDefs.length, menus: menuDefs.length } });

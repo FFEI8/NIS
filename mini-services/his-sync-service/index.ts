@@ -35,6 +35,158 @@ function parseJsonConfig(jsonStr: string | null | undefined): any {
 }
 
 // ============================================================================
+// DDL: Initialize tables on startup
+// ============================================================================
+function initializeTables() {
+  const db = getDb();
+
+  db.exec(`CREATE TABLE IF NOT EXISTS HisSyncConfig (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    syncMode TEXT NOT NULL,
+    businessScenario TEXT NOT NULL,
+    hisDbType TEXT DEFAULT 'mssql',
+    hisHost TEXT,
+    hisPort TEXT,
+    hisDatabase TEXT,
+    hisUsername TEXT,
+    hisPassword TEXT,
+    hisOptions TEXT,
+    hisTableName TEXT,
+    syncTableName TEXT,
+    esbEndpoint TEXT,
+    esbAuthConfig TEXT,
+    apiEndpoint TEXT,
+    apiAuthType TEXT,
+    apiAuthConfig TEXT,
+    syncQuery TEXT,
+    fieldMapping TEXT,
+    transformRules TEXT,
+    incrementalField TEXT,
+    syncInterval INTEGER DEFAULT 300,
+    batchSize INTEGER DEFAULT 500,
+    enabled INTEGER DEFAULT 1,
+    autoWarning INTEGER DEFAULT 1,
+    connectionStatus TEXT DEFAULT '未测试',
+    lastTestTime TEXT,
+    lastSyncTime TEXT,
+    lastSyncStatus TEXT,
+    lastSyncCount INTEGER,
+    lastSyncError TEXT,
+    totalSyncCount INTEGER DEFAULT 0,
+    totalFailCount INTEGER DEFAULT 0,
+    description TEXT,
+    createdAt TEXT,
+    updatedAt TEXT
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS HisSyncLog (
+    id TEXT PRIMARY KEY,
+    configId TEXT NOT NULL,
+    configName TEXT,
+    syncMode TEXT,
+    businessScenario TEXT,
+    triggerType TEXT,
+    startTime TEXT,
+    endTime TEXT,
+    duration INTEGER,
+    status TEXT,
+    sourceCount INTEGER DEFAULT 0,
+    targetCount INTEGER DEFAULT 0,
+    skippedCount INTEGER DEFAULT 0,
+    errorCount INTEGER DEFAULT 0,
+    warningCount INTEGER DEFAULT 0,
+    dataSample TEXT,
+    logDetail TEXT,
+    errorDetail TEXT,
+    operator TEXT,
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS TemperatureRecord (
+    id TEXT PRIMARY KEY,
+    patientId TEXT,
+    patientName TEXT,
+    gender TEXT,
+    age INTEGER,
+    dept TEXT,
+    bedNo TEXT,
+    visitId TEXT,
+    temperature REAL,
+    measureRoute TEXT,
+    measureTime TEXT,
+    nurseName TEXT,
+    hisSource TEXT,
+    isAbnormal INTEGER DEFAULT 0,
+    isFever INTEGER DEFAULT 0,
+    feverLevel TEXT,
+    syncStatus TEXT,
+    syncTime TEXT,
+    autoReported INTEGER DEFAULT 0,
+    symptomSurveillanceId TEXT,
+    warningTriggered INTEGER DEFAULT 0,
+    warningId TEXT
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS MicroLabResult (
+    id TEXT PRIMARY KEY,
+    testId TEXT,
+    patientId TEXT,
+    patientName TEXT,
+    visitId TEXT,
+    orderNo TEXT,
+    dept TEXT,
+    bedNo TEXT,
+    specimenType TEXT,
+    specimenNo TEXT,
+    collectTime TEXT,
+    receiveTime TEXT,
+    reportTime TEXT,
+    reportItemName TEXT,
+    reportItemCode TEXT,
+    resultValue TEXT,
+    resultText TEXT,
+    isAbnormal INTEGER DEFAULT 0,
+    isMDRO INTEGER DEFAULT 0,
+    mdroType TEXT,
+    organismName TEXT,
+    status TEXT
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS SymptomSurveillance (
+    id TEXT PRIMARY KEY,
+    dept TEXT,
+    patientId TEXT,
+    patientName TEXT,
+    gender TEXT,
+    age INTEGER,
+    temperature REAL,
+    symptomGroup TEXT,
+    symptomDetail TEXT,
+    onsetDate TEXT,
+    reporter TEXT,
+    alertTriggered INTEGER DEFAULT 0,
+    status TEXT
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS WarningRecord (
+    id TEXT PRIMARY KEY,
+    patientId TEXT,
+    patientName TEXT,
+    dept TEXT,
+    warningType TEXT,
+    warningLevel TEXT,
+    description TEXT,
+    status TEXT
+  )`);
+
+  console.log('✅ 数据库表初始化完成');
+}
+
+// Initialize tables on startup
+initializeTables();
+
+// ============================================================================
 // Temperature fever level calculation
 // ============================================================================
 function calculateFeverLevel(temperature: number): { isAbnormal: number; isFever: number; feverLevel: string } {
@@ -603,7 +755,18 @@ const server = Bun.serve({
         const id = putMatch[1];
         const body = await req.json();
         const now = new Date().toISOString();
-        const fields = Object.keys(body).filter(k => !['id', 'createdAt', 'totalSyncCount', 'totalFailCount'].includes(k));
+
+        // Whitelist allowed column names to prevent SQL injection
+        const allowedColumns = [
+          'name', 'syncMode', 'businessScenario', 'hisDbType', 'hisHost', 'hisPort',
+          'hisDatabase', 'hisUsername', 'hisPassword', 'hisOptions', 'hisTableName',
+          'syncTableName', 'esbEndpoint', 'esbAuthConfig', 'apiEndpoint', 'apiAuthType',
+          'apiAuthConfig', 'syncQuery', 'fieldMapping', 'transformRules',
+          'incrementalField', 'syncInterval', 'batchSize', 'enabled', 'autoWarning',
+          'connectionStatus', 'lastTestTime', 'lastSyncTime', 'lastSyncStatus',
+          'lastSyncCount', 'lastSyncError', 'description',
+        ];
+        const fields = Object.keys(body).filter(k => allowedColumns.includes(k));
         if (fields.length === 0) return json({ error: '没有要更新的字段' }, 400);
         const setClauses = fields.map(f => `${f} = ?`).join(', ');
         const values = fields.map(f => body[f]);
@@ -689,6 +852,20 @@ const server = Bun.serve({
         const syncModeStats = db.query('SELECT syncMode, COUNT(*) as count FROM HisSyncConfig GROUP BY syncMode').all();
         const scenarioStats = db.query('SELECT businessScenario, COUNT(*) as count FROM HisSyncConfig GROUP BY businessScenario').all();
         return json({ totalConfigs, enabledConfigs, totalSyncs, totalFails, recentLogs, syncModeStats, scenarioStats });
+      }
+
+      // GET /api/health
+      if (path === '/api/health' && method === 'GET') {
+        const totalConfigs = (db.query('SELECT COUNT(*) as c FROM HisSyncConfig').get() as any).c;
+        const enabledConfigs = (db.query('SELECT COUNT(*) as c FROM HisSyncConfig WHERE enabled=1').get() as any).c;
+        return json({
+          status: 'ok',
+          service: 'his-sync-service',
+          configured: totalConfigs > 0,
+          totalConfigs,
+          enabledConfigs,
+          uptime: process.uptime(),
+        });
       }
 
       // POST /api/his-sync/seed

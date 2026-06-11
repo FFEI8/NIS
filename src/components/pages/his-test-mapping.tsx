@@ -48,7 +48,6 @@ function HisMappingForm({ item, onSave, onClose }: { item?: any; onSave: (data: 
       return;
     }
     setSaving(true);
-    await new Promise(r => setTimeout(r, 200));
     onSave(form);
     setSaving(false);
   };
@@ -141,6 +140,8 @@ export default function HisTestMappingPage() {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [filter, setFilter] = useState({ status: '', keyword: '' });
+  // Stats from API (not from paginated data)
+  const [stats, setStats] = useState({ enabledCount: 0, disabledCount: 0, riskCount: 0 });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -155,6 +156,24 @@ export default function HisTestMappingPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchData(); }, [fetchData]);
+
+  // Fetch stats separately (not affected by pagination)
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/his-id-test-mapping/stats');
+      const d = await res.json();
+      if (d.success) {
+        setStats({
+          enabledCount: d.data.enabledCount,
+          disabledCount: d.data.disabledCount,
+          riskCount: d.data.riskCount,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchStats(); }, [fetchStats]);
 
   const handleSave = async (formData: any) => {
     try {
@@ -173,7 +192,7 @@ export default function HisTestMappingPage() {
         if (!result.success) { toast.error(result.message); return; }
         toast.success('HIS检验映射已创建');
       }
-      setShowForm(false); setEditItem(null); void fetchData();
+      setShowForm(false); setEditItem(null); void fetchData(); void fetchStats();
     } catch {
       toast.error('保存失败');
     }
@@ -183,7 +202,7 @@ export default function HisTestMappingPage() {
     try {
       const res = await fetch(`/api/his-id-test-mapping/${row.id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (result.success) { toast.success('已删除'); void fetchData(); }
+      if (result.success) { toast.success('已删除'); void fetchData(); void fetchStats(); }
       else toast.error(result.message);
     } catch {
       toast.error('删除失败');
@@ -200,7 +219,7 @@ export default function HisTestMappingPage() {
       const result = await res.json();
       if (result.success) {
         toast.success(newStatus === 1 ? '已启用' : '已禁用');
-        void fetchData();
+        void fetchData(); void fetchStats();
       } else {
         toast.error(result.message);
       }
@@ -257,10 +276,8 @@ export default function HisTestMappingPage() {
     { key: 'status', label: '状态', render: (v: number) => <StatusBadge status={v === 1 ? '已启用' : '已禁用'} /> },
   ];
 
-  // Summary stats
-  const enabledCount = data.filter(r => r.status === 1).length;
-  const disabledCount = data.filter(r => r.status === 0).length;
-  const riskCount = data.filter(r => r.consistencyRisk).length;
+  // Summary stats (from API, not from paginated data)
+  const { enabledCount, disabledCount, riskCount } = stats;
 
   return (
     <div className="space-y-4">

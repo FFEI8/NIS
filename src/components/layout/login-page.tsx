@@ -60,6 +60,7 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [entranceComplete, setEntranceComplete] = useState(false);
+  const [shaking, setShaking] = useState(false);
   const login = useAppStore(s => s.login);
 
   useEffect(() => {
@@ -103,6 +104,9 @@ export default function LoginPage() {
       // Read the specific error message from the store (set during login)
       const { loginError: errMsg } = useAppStore.getState();
       setError(errMsg || '用户名或密码错误');
+      // Trigger shake animation
+      setShaking(true);
+      setTimeout(() => setShaking(false), 600);
     } else if (remember) {
       localStorage.setItem('hims-remember', JSON.stringify({ username }));
     } else {
@@ -122,7 +126,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       <ParticleBackground />
 
-      <div className={`relative w-full max-w-md mx-4 transition-all duration-700 ease-out ${entranceComplete ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+      <div className={`relative w-full max-w-md mx-4 transition-all duration-700 ease-out ${entranceComplete ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${shaking ? 'animate-shake' : ''}`}>
         <div className="bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)_inset]">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 mb-4 transition-transform duration-300 hover:scale-110">
@@ -193,17 +197,17 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <AlertCircle size={16} />
+              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                <AlertCircle size={16} className="flex-shrink-0" />
                 {error}
               </div>
             )}
             <button type="submit" disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800/80 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/40 flex items-center justify-center gap-2 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900 active:scale-[0.98] disabled:active:scale-100 relative overflow-hidden">
               {loading ? (
                 <>
                   <RefreshCw size={18} className="animate-spin" />
-                  <span>登录中...</span>
+                  <span>正在登录...</span>
                 </>
               ) : (
                 <>
@@ -211,21 +215,30 @@ export default function LoginPage() {
                   <span>登 录</span>
                 </>
               )}
+              {/* Loading progress bar overlay */}
+              {loading && (
+                <div className="absolute bottom-0 left-0 h-0.5 bg-emerald-300/60 animate-loading-bar" />
+              )}
             </button>
           </form>
 
           <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/5">
-            <p className="text-slate-400 text-xs text-center mb-3">演示账号</p>
+            <p className="text-slate-400 text-xs text-center mb-3 flex items-center justify-center gap-1.5">
+              <User size={12} /> 演示账号
+            </p>
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
-                { label: '管理员', user: 'admin', pass: 'admin123', accent: 'text-emerald-400', hoverBg: 'hover:bg-emerald-500/15 hover:border-emerald-500/30' },
-                { label: '感控专员', user: 'gkzj', pass: '123456', accent: 'text-amber-400', hoverBg: 'hover:bg-amber-500/15 hover:border-amber-500/30' },
-                { label: '临床医师', user: 'doctor', pass: '123456', accent: 'text-sky-400', hoverBg: 'hover:bg-sky-500/15 hover:border-sky-500/30' },
+                { label: '管理员', user: 'admin', pass: 'admin123', accent: 'text-emerald-400', bgAccent: 'from-emerald-500/20 to-emerald-600/10', hoverBg: 'hover:bg-emerald-500/15 hover:border-emerald-500/30' },
+                { label: '感控专员', user: 'gkzj', pass: '123456', accent: 'text-amber-400', bgAccent: 'from-amber-500/20 to-amber-600/10', hoverBg: 'hover:bg-amber-500/15 hover:border-amber-500/30' },
+                { label: '临床医师', user: 'doctor', pass: '123456', accent: 'text-sky-400', bgAccent: 'from-sky-500/20 to-sky-600/10', hoverBg: 'hover:bg-sky-500/15 hover:border-sky-500/30' },
               ].map(d => (
                 <button key={d.user} type="button" onClick={() => handleDemoClick(d.user, d.pass)}
-                  className={`text-center p-2.5 bg-white/5 rounded-lg border border-transparent ${d.hoverBg} transition-all duration-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:outline-none active:scale-95`}>
-                  <div className={`${d.accent} font-medium`}>{d.label}</div>
-                  <div className="text-slate-500 mt-0.5">{d.user}</div>
+                  className={`text-center p-2.5 rounded-lg border border-transparent ${d.hoverBg} transition-all duration-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:outline-none active:scale-95 hover:scale-[1.03] relative overflow-hidden group/demo`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${d.bgAccent} opacity-0 group-hover/demo:opacity-100 transition-opacity duration-200`} />
+                  <div className="relative">
+                    <div className={`${d.accent} font-medium`}>{d.label}</div>
+                    <div className="text-slate-500 mt-0.5">{d.user}</div>
+                  </div>
                 </button>
               ))}
             </div>

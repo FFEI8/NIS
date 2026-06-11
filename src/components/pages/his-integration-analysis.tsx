@@ -435,8 +435,12 @@ export default function HISIntegrationAnalysisPage() {
   const [selectedScenario, setSelectedScenario] = useState('infection-case');
   const [activeTab, setActiveTab] = useState('overview');
 
-  // HIS connection status (simulated)
-  const [hisConnected, setHisConnected] = useState(true);
+  // HIS sync service configuration status
+  const [hisConfigStatus, setHisConfigStatus] = useState<'checking' | 'configured' | 'not_configured'>('checking');
+  const [hisSyncConfigs, setHisSyncConfigs] = useState<any[]>([]);
+  // Connection test result
+  const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string; detail?: string } | null>(null);
+  const [connectionTesting, setConnectionTesting] = useState(false);
 
   // Field mapping CRUD state
   const [mappingSearch, setMappingSearch] = useState('');
@@ -597,13 +601,53 @@ export default function HISIntegrationAnalysisPage() {
     if (activeTab === 'sync-logs' && syncLogs.length === 0) fetchSyncLogs();
   }, [activeTab, labStats, fetchLabData, syncLogs.length, fetchSyncLogs]);
 
-  // Simulate HIS connection check
+  // Check HIS sync service configuration status on mount
   useEffect(() => {
-    const check = () => setHisConnected(Math.random() > 0.05);
-    check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
+    const checkConfig = async () => {
+      try {
+        const res = await fetch('/api/his-sync/configs?XTransformPort=3030');
+        const result = await res.json();
+        if (result.data && result.data.length > 0) {
+          setHisConfigStatus('configured');
+          setHisSyncConfigs(result.data);
+        } else {
+          setHisConfigStatus('not_configured');
+        }
+      } catch {
+        // Sync service might not be running
+        setHisConfigStatus('not_configured');
+      }
+    };
+    checkConfig();
   }, []);
+
+  // Test actual connection to HIS sync service
+  const handleTestConnection = async () => {
+    setConnectionTesting(true);
+    setConnectionTestResult(null);
+    try {
+      const res = await fetch('/api/health?XTransformPort=3030');
+      const data = await res.json();
+      if (data.status === 'ok') {
+        setConnectionTestResult({
+          success: true,
+          message: 'HIS同步服务连接成功',
+          detail: `服务运行中，已配置${data.totalConfigs}个同步方案，其中${data.enabledConfigs}个已启用`,
+        });
+        // Refresh config status
+        if (data.totalConfigs > 0) {
+          setHisConfigStatus('configured');
+        } else {
+          setHisConfigStatus('not_configured');
+        }
+      } else {
+        setConnectionTestResult({ success: false, message: 'HIS同步服务响应异常' });
+      }
+    } catch {
+      setConnectionTestResult({ success: false, message: '无法连接HIS同步服务，请检查服务是否启动' });
+    }
+    setConnectionTesting(false);
+  };
 
   // Save warning config to backend SystemConfig
   const saveWarningConfig = async () => {
@@ -944,15 +988,21 @@ export default function HISIntegrationAnalysisPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400">医院信息系统集成映射配置与数据一致性分析</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
-            hisConnected
+            hisConfigStatus === 'configured'
               ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-              : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+              : hisConfigStatus === 'checking'
+                ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
           }`}>
-            {hisConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {hisConnected ? 'HIS已连接' : 'HIS连接断开'}
+            {hisConfigStatus === 'configured' ? <Wifi size={14} /> : hisConfigStatus === 'checking' ? <Loader2 size={14} className="animate-spin" /> : <WifiOff size={14} />}
+            {hisConfigStatus === 'configured' ? `已配置(${hisSyncConfigs.length}个方案)` : hisConfigStatus === 'checking' ? '检测中...' : '未配置'}
           </div>
+          <Button variant="outline" size="sm" onClick={handleTestConnection} disabled={connectionTesting} className="h-8 text-xs border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-400 dark:hover:bg-sky-900/20">
+            {connectionTesting ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Wifi size={14} className="mr-1.5" />}
+            检测连接
+          </Button>
           <Button variant="outline" size="sm" onClick={handleHealthCheck} className="h-8 text-xs border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20">
             <Heart size={14} className="mr-1.5" />
             健康检查
@@ -961,6 +1011,23 @@ export default function HISIntegrationAnalysisPage() {
             <RefreshCw size={14} className="mr-1.5" />
             刷新
           </Button>
+        </div>
+        {/* Connection test result notification */}
+        {connectionTestResult && (
+          <div className={`w-full text-xs px-3 py-2 rounded-lg flex items-center gap-2 ${
+            connectionTestResult.success
+              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+          }`}>
+            {connectionTestResult.success ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+            <span className="font-medium">{connectionTestResult.message}</span>
+            {connectionTestResult.detail && <span className="opacity-80">- {connectionTestResult.detail}</span>}
+          </div>
+        )}
+        {/* Note about HIS connectivity */}
+        <div className="w-full text-xs px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+          <Info size={12} />
+          <span>实际HIS连通性取决于同步服务的部署状态与网络配置，点击"检测连接"可验证同步服务是否在线</span>
         </div>
       </div>
 

@@ -13,7 +13,7 @@ import {
   UserPlus, ShieldHalf, Network, Key, MoreHorizontal, ArrowLeft, ArrowRight,
   Biohazard, Siren, UsersRound, ScanSearch, MapPin, CalendarDays, ClipboardCheck, FileWarning,
   Gauge, BarChart4, LineChart, ActivitySquare,
-  GitMerge, FlaskConical, ArrowLeftRight,
+  GitMerge, FlaskConical, ArrowLeftRight, Plug,
 } from 'lucide-react';
 
 export const lucideIconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
@@ -26,7 +26,7 @@ export const lucideIconMap: Record<string, React.ComponentType<{ className?: str
   ClipboardList, Shield, Zap, Clock,
   Biohazard, Siren, UsersRound, ScanSearch, MapPin, CalendarDays, ClipboardCheck, FileWarning,
   Gauge, BarChart4, LineChart, ActivitySquare,
-  GitMerge, FlaskConical, ArrowLeftRight,
+  GitMerge, FlaskConical, ArrowLeftRight, Plug,
 };
 
 export function LucideIcon({ name, size = 18, className }: { name?: string; size?: number; className?: string }) {

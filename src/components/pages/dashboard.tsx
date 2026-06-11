@@ -263,13 +263,18 @@ export default function DashboardPage() {
       {/* Stat cards with gradient backgrounds, shadows and sparklines */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
-          <div key={i} className={`relative overflow-hidden p-4 rounded-xl border ${card.bgLight} ${card.border} ${card.darkBg} ${card.darkBorder} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] group`}>
+          <div key={i}
+            className={`relative overflow-hidden p-4 rounded-xl border ${card.bgLight} ${card.border} ${card.darkBg} ${card.darkBorder} transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.03] group cursor-default`}
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
             {/* Gradient accent background overlay */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-300`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-[0.04] group-hover:opacity-[0.10] transition-opacity duration-300`} />
             {/* Gradient accent bar at top */}
-            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient} opacity-80`} />
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient} opacity-80 group-hover:opacity-100 transition-opacity duration-300`} />
+            {/* Subtle corner decoration */}
+            <div className={`absolute -bottom-4 -right-4 w-20 h-20 bg-gradient-to-tl ${card.gradient} opacity-[0.06] rounded-full blur-xl group-hover:opacity-[0.12] transition-opacity duration-300`} />
             <div className="relative flex items-center justify-between mb-2">
-              <div className={`opacity-80 ${card.text} ${card.darkText}`}>{card.icon}</div>
+              <div className={`opacity-80 group-hover:opacity-100 transition-opacity duration-200 ${card.text} ${card.darkText}`}>{card.icon}</div>
               <span className={`text-[10px] opacity-60 flex items-center gap-0.5 ${card.text} ${card.darkText}`}>{card.trendIcon}{card.trend}</span>
             </div>
             <div className={`relative text-2xl font-bold ${card.text} ${card.darkText}`}>
@@ -287,15 +292,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Circular progress indicators */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {circularData.map((item, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-            <div className="relative">
+          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+            <div className="relative flex-shrink-0">
               <CircularProgress value={item.value} size={64} strokeWidth={6} color={item.color} />
               <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-800 dark:text-slate-200">{item.value}%</div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.label}</div>
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{item.label}</div>
               <div className={`text-xs mt-0.5 font-medium ${item.value >= 80 ? 'text-emerald-500' : item.value >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>{item.value >= 80 ? '✓ 达标' : item.value >= 60 ? '⚠ 待改善' : '✗ 需关注'}</div>
             </div>
           </div>
@@ -308,16 +313,16 @@ export default function DashboardPage() {
           <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
             <BarChart3 size={18} className="text-emerald-500" /> 感染趋势（近12月）
           </h3>
-          <div className="h-64 flex items-end gap-2">
+          <div className="h-64 flex items-end gap-1.5 sm:gap-2">
             {stats.infectionTrend.map((item, i) => {
               const maxCount = Math.max(...stats.infectionTrend.map(t => t.count), 1);
               const height = (item.count / maxCount) * 100;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">{item.count}</span>
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">{item.count}</span>
                   <div
-                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all duration-500 hover:from-emerald-500 hover:to-emerald-300 min-h-[4px] group-hover:opacity-80"
-                    style={{ height: `${Math.max(height, 4)}%` }}
+                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all duration-500 hover:from-emerald-500 hover:to-emerald-300 min-h-[4px] group-hover:shadow-lg group-hover:shadow-emerald-500/20 group-hover:brightness-110"
+                    style={{ height: `${Math.max(height, 4)}%`, animationDelay: `${i * 50}ms` }}
                   />
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 -rotate-45 origin-center whitespace-nowrap">{item.month.slice(5)}</span>
                 </div>
@@ -336,14 +341,15 @@ export default function DashboardPage() {
               const maxCount = Math.max(...stats.siteDistribution.map(s => s.count), 1);
               const pct = (item.count / maxCount) * 100;
               const colors = ['bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-rose-500', 'bg-amber-500', 'bg-purple-500', 'bg-orange-500'];
+              const hoverColors = ['hover:bg-emerald-400', 'hover:bg-teal-400', 'hover:bg-cyan-400', 'hover:bg-rose-400', 'hover:bg-amber-400', 'hover:bg-purple-400', 'hover:bg-orange-400'];
               return (
-                <div key={i}>
+                <div key={i} className="group">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm text-slate-700 dark:text-slate-300">{item.site}</span>
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.count}例</span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{item.count}例</span>
                   </div>
                   <div className="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className={`h-full ${colors[i % colors.length]} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full ${colors[i % colors.length]} ${hoverColors[i % hoverColors.length]} rounded-full transition-all duration-700 group-hover:shadow-sm`} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -389,9 +395,9 @@ export default function DashboardPage() {
             ].map((action, i) => (
               <button key={i}
                 onClick={() => useAppStore.getState().setActiveMenu(action.menu)}
-                className="p-3 rounded-lg border border-slate-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200 text-left group">
-                <div className="text-emerald-600 dark:text-emerald-400 mb-1 group-hover:scale-110 transition-transform">{action.icon}</div>
-                <div className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">{action.label}</div>
+                className="p-3 rounded-lg border border-slate-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm transition-all duration-200 text-left group">
+                <div className="text-emerald-600 dark:text-emerald-400 mb-1 group-hover:scale-110 transition-transform duration-200">{action.icon}</div>
+                <div className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">{action.label}</div>
               </button>
             ))}
           </div>

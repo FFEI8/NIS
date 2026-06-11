@@ -43,6 +43,7 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = useCallback(() => {
@@ -99,9 +100,9 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
           </thead>
           <tbody>
             {[...Array(5)].map((_, i) => (
-              <tr key={i} className="border-b border-slate-100 dark:border-slate-700">
-                {columns.map(col => (
-                  <td key={col.key} className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+              <tr key={i} className={`border-b border-slate-100 dark:border-slate-700/50 ${i % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/40' : ''}`}>
+                {columns.map((col, ci) => (
+                  <td key={col.key} className="px-4 py-3"><Skeleton className="h-4" style={{ width: `${60 + (ci % 3) * 30}%` }} /></td>
                 ))}
                 {(onEdit || onDelete || onAction) && <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>}
               </tr>
@@ -159,14 +160,18 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
                 <EmptyStateIllustration />
               </td></tr>
             ) : sortedData.map((row, i) => (
-              <tr key={row.id || i} className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15 transition-colors duration-200 ${i % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900/20'}`}>
+              <tr key={row.id || i}
+                className={`border-b border-slate-100 dark:border-slate-700/50 transition-all duration-200 ${i % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900/20'} ${hoveredRow === i ? 'bg-emerald-50/80 dark:bg-emerald-900/20 shadow-sm' : 'hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15'}`}
+                onMouseEnter={() => setHoveredRow(i)}
+                onMouseLeave={() => setHoveredRow(null)}
+              >
                 {columns.map(col => (
                   <td key={col.key} className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap transition-colors duration-150">
                     {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {onAction && row.status === '待处理' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'handle')} className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"><Check size={12} />处理</Button>}
                     {onAction && row.status === '待审核' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'review')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"><CheckCircle2 size={12} />审核</Button>}
                     {onAction && row.status === '待核实' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'verify')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"><ClipboardCheck size={12} />核实</Button>}
@@ -208,7 +213,7 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
   };
 
   return (
-    <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 flex-wrap gap-3 pt-3">
+    <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 flex-wrap gap-3 pt-3 pb-1">
       <div className="flex items-center gap-3">
         <span className="text-xs">共 <span className="font-semibold text-slate-700 dark:text-slate-300">{total}</span> 条记录</span>
         {/* Page size selector */}
@@ -218,7 +223,7 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+              className="h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors hover:border-emerald-300 dark:hover:border-emerald-600"
             >
               {pageSizeOptions.map(size => (
                 <option key={size} value={size}>{size}条</option>
@@ -227,10 +232,10 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
           </div>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         <Button variant="outline" size="sm" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}
-          className="gap-1 h-8 px-3 text-xs"><ArrowLeft size={14} /> 上一页</Button>
-        <div className="flex items-center gap-1">
+          className="gap-1 h-8 px-2.5 sm:px-3 text-xs"><ArrowLeft size={14} /> <span className="hidden sm:inline">上一页</span></Button>
+        <div className="flex items-center gap-0.5 sm:gap-1">
           {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
             let pageNum: number;
             if (totalPages <= 5) {
@@ -245,8 +250,8 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
             return (
               <button key={pageNum} onClick={() => onPageChange(pageNum)}
                 className={`w-8 h-8 rounded-md text-xs font-medium transition-all duration-200 ${page === pageNum
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-400'
                 }`}>
                 {pageNum}
               </button>
@@ -254,9 +259,9 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
           })}
         </div>
         <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}
-          className="gap-1 h-8 px-3 text-xs">下一页 <ArrowRight size={14} /></Button>
+          className="gap-1 h-8 px-2.5 sm:px-3 text-xs"><span className="hidden sm:inline">下一页</span> <ArrowRight size={14} /></Button>
         {/* Jump to page */}
-        <div className="flex items-center gap-1.5 ml-1">
+        <div className="hidden sm:flex items-center gap-1.5 ml-1">
           <span className="text-xs text-slate-400">跳转</span>
           <input
             type="number"
@@ -265,10 +270,10 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
             value={jumpInput}
             onChange={e => setJumpInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleJumpToPage()}
-            className="w-14 h-8 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center transition-colors"
+            className="w-14 h-8 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center transition-colors hover:border-emerald-300 dark:hover:border-emerald-600"
             placeholder="页码"
           />
-          <Button variant="outline" size="sm" onClick={handleJumpToPage} className="h-8 text-xs gap-1 px-2.5">
+          <Button variant="outline" size="sm" onClick={handleJumpToPage} className="h-8 text-xs gap-1 px-2.5 hover:border-emerald-300 dark:hover:border-emerald-600">
             <Search size={12} /> 跳转
           </Button>
         </div>
