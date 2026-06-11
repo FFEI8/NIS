@@ -83,7 +83,7 @@ function TestItemForm({ item, onSave, onClose }: { item?: any; onSave: (data: an
             {item ? '编辑检验项目' : '新增检验项目'}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 py-4">
           <FormField label="检验项目编码" required>
             <Input value={form.testItemCode} onChange={e => setForm(f => ({ ...f, testItemCode: e.target.value }))} placeholder="如 jyxx2351" disabled={!!item} />
           </FormField>
@@ -101,13 +101,13 @@ function TestItemForm({ item, onSave, onClose }: { item?: any; onSave: (data: an
           </FormField>
           <FormField label="传染病分类">
             <select value={form.diseaseCategory} onChange={e => setForm(f => ({ ...f, diseaseCategory: e.target.value }))}
-              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
               {DISEASE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </FormField>
           <FormField label="是否法定报告">
             <select value={form.isNotifiable} onChange={e => setForm(f => ({ ...f, isNotifiable: parseInt(e.target.value) }))}
-              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
               <option value={1}>是</option>
               <option value={0}>否</option>
             </select>
@@ -120,7 +120,7 @@ function TestItemForm({ item, onSave, onClose }: { item?: any; onSave: (data: an
           </FormField>
           <FormField label="检测方法">
             <select value={form.testMethod} onChange={e => setForm(f => ({ ...f, testMethod: e.target.value }))}
-              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
               {TEST_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </FormField>
@@ -129,14 +129,14 @@ function TestItemForm({ item, onSave, onClose }: { item?: any; onSave: (data: an
           </FormField>
           <FormField label="预警级别">
             <select value={form.warningLevel} onChange={e => setForm(f => ({ ...f, warningLevel: e.target.value }))}
-              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
               {WARNING_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </FormField>
           <div className="col-span-1 sm:col-span-2">
             <FormField label="风险提示">
               <textarea value={form.riskNote} onChange={e => setForm(f => ({ ...f, riskNote: e.target.value }))}
-                rows={2} className="w-full px-3 py-2 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 resize-none"
+                rows={2} className="w-full px-3 py-2 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 resize-none"
                 placeholder="如 甲类传染病需2小时内报告" />
             </FormField>
           </div>
@@ -330,12 +330,12 @@ export default function InfectiousDiseaseTestItemsPage() {
           placeholder="搜索编码/名称/传染病"
           className="w-48 h-8 text-sm" />
         <select value={filter.diseaseCategory} onChange={e => setFilter(f => ({ ...f, diseaseCategory: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部分类</option>
           {DISEASE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           <option value="1">启用</option>
           <option value="0">禁用</option>

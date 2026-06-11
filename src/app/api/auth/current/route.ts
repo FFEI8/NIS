@@ -136,6 +136,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    console.error('[auth/current] Internal error:', error);
+    return NextResponse.json({ success: false, message: '服务器内部错误' }, { status: 500 });
   }
 }

@@ -54,7 +54,7 @@ function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (da
     setSaving(false);
   };
 
-  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
+  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -65,7 +65,7 @@ function ContactTracingForm({ item, onSave, onClose }: { item?: any; onSave: (da
             {item ? '编辑接触者追踪' : '新增接触者追踪'}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           <div>
             <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1.5"><Biohazard size={14} /> 关联病例</h4>
             <div className="grid grid-cols-2 gap-4">
@@ -228,22 +228,22 @@ export default function ContactTracingPage() {
       <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">传染病病例密切接触者与一般接触者的追踪管理</p>
       <div className="flex gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex-wrap">
         <select value={filter.contactType} onChange={e => setFilter(f => ({ ...f, contactType: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部接触类型</option>
           {contactTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.followUpStatus} onChange={e => setFilter(f => ({ ...f, followUpStatus: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部随访状态</option>
           {followUpStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.exposureLevel} onChange={e => setFilter(f => ({ ...f, exposureLevel: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部暴露等级</option>
           {exposureLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}
         </select>

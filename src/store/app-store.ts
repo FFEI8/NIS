@@ -14,6 +14,7 @@ interface AppState {
 
   // Loading states
   loginLoading: boolean;
+  loginError: string;
   userInfoLoading: boolean;
 
   // Actions
@@ -40,11 +41,12 @@ export const useAppStore = create<AppState>()(
       sidebarCollapsed: false,
       activeMenu: 'dashboard',
       loginLoading: false,
+      loginError: '',
       userInfoLoading: false,
 
       // Login action
       login: async (username: string, password: string) => {
-        set({ loginLoading: true });
+        set({ loginLoading: true, loginError: '' });
         try {
           const res = await fetch('/api/auth/login', {
             method: 'POST',
@@ -53,7 +55,20 @@ export const useAppStore = create<AppState>()(
           });
 
           if (!res.ok) {
-            set({ loginLoading: false });
+            // Try to parse error message from response body
+            let errorMessage = '用户名或密码错误';
+            try {
+              const errorData = await res.json();
+              if (errorData.message) {
+                errorMessage = errorData.message;
+              }
+            } catch { /* use default message */ }
+
+            if (res.status === 403) {
+              errorMessage = '账户已被禁用';
+            }
+
+            set({ loginLoading: false, loginError: errorMessage });
             return false;
           }
 

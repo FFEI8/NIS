@@ -55,29 +55,35 @@ export default function Sidebar() {
   const visibleMenus = filterVisibleMenus(userMenus);
 
   const renderMenuItems = (items: MenuItem[], depth = 0) => {
-    return items.map(menu => {
+    return items.map((menu, idx) => {
       const isActive = activeMenu === menu.code;
       const isExpanded = expandedMenus.has(menu.code);
       const hasChildren = menu.children && menu.children.length > 0;
+      const isTopLevel = depth === 0;
+      const showDivider = isTopLevel && idx > 0;
 
       return (
         <div key={menu.id}>
+          {/* Divider between top-level menu groups */}
+          {showDivider && (
+            <div className="mx-4 my-1.5 border-t border-slate-700/50" />
+          )}
           <div
             className={`flex items-center gap-2.5 py-2.5 mx-2 rounded-lg cursor-pointer transition-all duration-200 group relative
               ${isActive && !hasChildren
-                ? 'bg-emerald-600/15 text-emerald-400 dark:text-emerald-400'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                ? 'bg-emerald-600/20 text-emerald-400 dark:text-emerald-400 border-l-[3px] border-emerald-500'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white hover:scale-[1.02]'
               }
             `}
-            style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
+            style={{ paddingLeft: `${isActive && !hasChildren ? 9 : 12 + depth * 16}px`, paddingRight: '12px' }}
             onClick={() => handleMenuClick(menu)}
             title={sidebarCollapsed ? menu.name : undefined}
           >
-            {/* Active left border indicator with pulse glow */}
+            {/* Active left border indicator with glow */}
             {isActive && !hasChildren && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-500 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-emerald-500 rounded-r-full shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
             )}
-            <LucideIcon name={menu.icon} size={18} className={`flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+            <LucideIcon name={menu.icon} size={18} className={`flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
             {!sidebarCollapsed && (
               <>
                 <span className="flex-1 text-sm font-medium truncate">{menu.name}</span>
@@ -88,7 +94,7 @@ export default function Sidebar() {
             )}
             {/* Tooltip for collapsed items */}
             {sidebarCollapsed && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+              <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-slate-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg border border-slate-700">
                 {menu.name}
               </div>
             )}

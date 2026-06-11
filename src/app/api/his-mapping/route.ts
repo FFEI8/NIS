@@ -92,14 +92,49 @@ export async function GET() {
       solution: i.suggestion ?? '',
     }));
 
-    // Fetch temperature stats
+    // Fetch temperature stats directly from DB (instead of fetching from localhost)
     let temperatureStats = null;
     try {
-      const tempStatsUrl = new URL('/api/temperature-records/stats', 'http://localhost:3000');
-      const tempRes = await fetch(tempStatsUrl);
-      if (tempRes.ok) {
-        temperatureStats = await tempRes.json();
+      const [totalRecords, feverCount, abnormalCount, reportedCount] = await Promise.all([
+        db.temperatureRecord.count(),
+        db.temperatureRecord.count({ where: { isFever: 1 } }),
+        db.temperatureRecord.count({ where: { isAbnormal: 1 } }),
+        db.temperatureRecord.count({ where: { autoReported: 1 } }),
+      ]);
+
+      const feverLevelBreakdown = await db.temperatureRecord.groupBy({
+        by: ['feverLevel'],
+        _count: { id: true },
+      });
+
+      const deptBreakdownRaw = await db.temperatureRecord.groupBy({
+        by: ['dept'],
+        _count: { id: true },
+      });
+
+      const deptFeverCounts = await db.temperatureRecord.groupBy({
+        by: ['dept'],
+        _count: { id: true },
+        where: { isFever: 1 },
+      });
+
+      const deptMap = new Map<string, { total: number; fever: number }>();
+      for (const d of deptBreakdownRaw) {
+        deptMap.set(d.dept, { total: d._count.id, fever: 0 });
       }
+      for (const d of deptFeverCounts) {
+        const entry = deptMap.get(d.dept);
+        if (entry) entry.fever = d._count.id;
+      }
+
+      temperatureStats = {
+        totalRecords,
+        feverCount,
+        abnormalCount,
+        reportedCount,
+        feverLevelBreakdown: feverLevelBreakdown.map(f => ({ feverLevel: f.feverLevel, count: f._count.id })),
+        deptBreakdown: Array.from(deptMap.entries()).map(([dept, counts]) => ({ dept, ...counts })),
+      };
     } catch {
       // Temperature stats not available
     }

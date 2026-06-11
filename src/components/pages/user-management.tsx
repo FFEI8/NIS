@@ -38,7 +38,7 @@ function UserForm({ item, roles, onSave, onClose }: { item?: any; roles: any[]; 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><UserCog size={20} className="text-emerald-500" /> {item ? '编辑用户' : '新增用户'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="space-y-4 py-4">
           <FormField label="用户名" required>
             <Input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
           </FormField>

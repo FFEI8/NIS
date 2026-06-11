@@ -10,22 +10,35 @@ export async function POST() {
       return NextResponse.json({ success: true, message: '数据已存在，跳过初始化', data: { skipped: true } });
     }
 
-    // Clean tables
+    // Clean tables (order matters: child tables first, then parent tables)
+    await db.hisInfectiousDiseaseTestMapping.deleteMany();
+    await db.infectiousDiseaseLabResult.deleteMany();
+    await db.infectiousDiseaseTestItem.deleteMany();
+    await db.hisConsistencyIssue.deleteMany();
+    await db.hisValidationRule.deleteMany();
+    await db.hisConversionRule.deleteMany();
+    await db.hisFieldMapping.deleteMany();
+    await db.hisBusinessScenario.deleteMany();
+    await db.warningRuleLog.deleteMany();
+    await db.microLabResult.deleteMany();
+    await db.warningRule.deleteMany();
+    await db.temperatureRecord.deleteMany();
+    await db.contactTracing.deleteMany();
+    await db.symptomSurveillance.deleteMany();
+    await db.diseaseAlert.deleteMany();
+    await db.infectiousDiseaseCase.deleteMany();
     await Promise.all([
       db.userRole.deleteMany(), db.rolePermission.deleteMany(), db.roleMenu.deleteMany(),
       db.infectionCase.deleteMany(), db.warningRecord.deleteMany(), db.environmentalMonitor.deleteMany(),
       db.sterilizationMonitor.deleteMany(), db.occupationalExposure.deleteMany(), db.antibioticUsage.deleteMany(),
-      db.handHygiene.deleteMany(), db.infectionReport.deleteMany(), db.contactTracing.deleteMany(),
-      db.symptomSurveillance.deleteMany(), db.diseaseAlert.deleteMany(), db.infectiousDiseaseCase.deleteMany(),
-      db.warningRule.deleteMany(), db.microLabResult.deleteMany(), db.warningRuleLog.deleteMany(),
-      db.temperatureRecord.deleteMany(), db.hisBusinessScenario.deleteMany(), db.hisFieldMapping.deleteMany(),
-      db.hisConversionRule.deleteMany(), db.hisValidationRule.deleteMany(), db.hisConsistencyIssue.deleteMany(),
+      db.handHygiene.deleteMany(), db.infectionReport.deleteMany(),
       db.dictItem.deleteMany(), db.systemConfig.deleteMany(), db.targetMonitoringItem.deleteMany(),
       db.department.deleteMany(), db.diseaseCategory.deleteMany(), db.mdroRuleTemplate.deleteMany(),
-      db.infectiousDiseaseLabResult.deleteMany(), db.infectiousDiseaseTestItem.deleteMany(),
-      db.hisInfectiousDiseaseTestMapping.deleteMany(),
-      db.user.deleteMany(), db.role.deleteMany(), db.permission.deleteMany(), db.menu.deleteMany(),
     ]);
+    await db.user.deleteMany();
+    await db.role.deleteMany();
+    await db.permission.deleteMany();
+    await db.menu.deleteMany();
 
     // Permissions
     const permissionDefs = [
@@ -827,7 +840,7 @@ export async function POST() {
     })) });
 
     // === InfectiousDiseaseTestItem Seed Data ===
-    await db.infectiousDiseaseTestItem.createMany({ data: [
+    const testItemDefs = [
       { testItemCode: 'jyxx2351', testItemName: '乙型肝炎病毒表面抗原（HBsAg）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B16', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '住院隔离', testMethod: '血清学', specimenTypes: '血清,全血', warningLevel: '中', riskNote: '乙肝为乙类传染病，需24小时内报告', sort: 0, status: 1 },
       { testItemCode: 'jyxx2352', testItemName: '乙型肝炎病毒e抗原（HBeAg）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B16', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '住院隔离', testMethod: '血清学', specimenTypes: '血清', warningLevel: '中', riskNote: 'HBeAg阳性提示病毒复制活跃', sort: 1, status: 1 },
       { testItemCode: 'jyxx2353', testItemName: '丙型肝炎病毒抗体（Anti-HCV）', positiveResult: '阳性', diseaseName: '病毒性肝炎', diseaseCode: 'B17.1', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, testMethod: '血清学', specimenTypes: '血清', warningLevel: '中', sort: 2, status: 1 },
@@ -836,7 +849,14 @@ export async function POST() {
       { testItemCode: 'jyxx2356', testItemName: '新型冠状病毒核酸检测（SARS-CoV-2 RNA）', positiveResult: '阳性', diseaseName: '新型冠状病毒感染', diseaseCode: 'U07.1', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 2, isolationType: '集中隔离', testMethod: '核酸检测', specimenTypes: '咽拭子,痰液', warningLevel: '高', riskNote: '新冠为乙类但甲类管理，2小时内报告', sort: 5, status: 1 },
       { testItemCode: 'jyxx2357', testItemName: '结核杆菌DNA检测', positiveResult: '阳性', diseaseName: '肺结核', diseaseCode: 'A15.0', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, isolationType: '居家隔离', testMethod: '核酸检测', specimenTypes: '痰液', warningLevel: '中', sort: 6, status: 1 },
       { testItemCode: 'jyxx2358', testItemName: '淋球菌培养', positiveResult: '培养出淋球菌奈瑟氏菌生长', diseaseName: '淋病', diseaseCode: 'A54', diseaseCategory: '乙类', isNotifiable: 1, reportTimeLimit: 24, testMethod: '培养', specimenTypes: '分泌物', warningLevel: '中', sort: 7, status: 1 },
-    ] });
+    ];
+    for (const item of testItemDefs) {
+      await db.infectiousDiseaseTestItem.upsert({
+        where: { testItemCode: item.testItemCode },
+        update: item,
+        create: item,
+      });
+    }
 
     // === HisInfectiousDiseaseTestMapping Seed Data ===
     await db.hisInfectiousDiseaseTestMapping.createMany({ data: [

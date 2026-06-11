@@ -32,7 +32,7 @@ function EmptyStateIllustration() {
 }
 
 export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, onExport }: {
-  columns: { key: string; label: string; render?: (val: any, row: any) => React.ReactNode }[];
+  columns: { key: string; label: string; render?: (val: any, row: any) => React.ReactNode; sortable?: boolean }[];
   data: any[];
   onEdit?: (row: any) => void;
   onDelete?: (row: any) => void;
@@ -41,6 +41,8 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
   onExport?: () => void;
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = useCallback(() => {
@@ -61,6 +63,27 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  // Sort handler
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  // Sorted data
+  const sortedData = sortKey ? [...data].sort((a, b) => {
+    const aVal = a[sortKey];
+    const bVal = b[sortKey];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'number' && typeof bVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal), 'zh-CN');
+    return sortDir === 'asc' ? cmp : -cmp;
+  }) : data;
 
   if (loading) {
     return (
@@ -115,33 +138,43 @@ export function DataTable({ columns, data, onEdit, onDelete, onAction, loading, 
           <thead className={`bg-slate-50 dark:bg-slate-800 ${isFullscreen ? '' : 'sticky top-0 z-10'}`}>
             <tr className="border-b border-slate-200 dark:border-slate-700">
               {columns.map(col => (
-                <th key={col.key} className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap bg-slate-50 dark:bg-slate-800">{col.label}</th>
+                <th key={col.key}
+                  className={`px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap bg-slate-50 dark:bg-slate-800 ${col.sortable !== false ? 'cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors' : ''}`}
+                  onClick={() => col.sortable !== false && handleSort(col.key)}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                    {col.sortable !== false && sortKey === col.key && (
+                      <span className="text-emerald-500 transition-transform duration-200" style={{ transform: sortDir === 'desc' ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>↑</span>
+                    )}
+                  </span>
+                </th>
               ))}
               {(onEdit || onDelete || onAction) && <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800">操作</th>}
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {sortedData.length === 0 ? (
               <tr><td colSpan={columns.length + (onEdit || onDelete || onAction ? 1 : 0)} className="px-4 py-4">
                 <EmptyStateIllustration />
               </td></tr>
-            ) : data.map((row, i) => (
-              <tr key={row.id || i} className={`border-b border-slate-100 dark:border-slate-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors duration-150 ${i % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''}`}>
+            ) : sortedData.map((row, i) => (
+              <tr key={row.id || i} className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15 transition-colors duration-200 ${i % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900/20'}`}>
                 {columns.map(col => (
-                  <td key={col.key} className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                  <td key={col.key} className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap transition-colors duration-150">
                     {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
-                    {onAction && row.status === '待处理' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'handle')} className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-500"><Check size={12} />处理</Button>}
-                    {onAction && row.status === '待审核' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'review')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500"><CheckCircle2 size={12} />审核</Button>}
-                    {onAction && row.status === '待核实' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'verify')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500"><ClipboardCheck size={12} />核实</Button>}
-                    {onAction && row.status === '待确认' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'confirm')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500"><CheckCircle2 size={12} />确认</Button>}
-                    {onAction && row.status === '处理中' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'close')} className="h-7 text-xs gap-1 text-slate-600 hover:text-slate-500"><XCircle size={12} />关闭</Button>}
-                    {onAction && row.reportToCDC === 0 && row.status === '已审核' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'report-cdc')} className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-500"><Upload size={12} />上报CDC</Button>}
-                    {onEdit && <Button variant="ghost" size="sm" onClick={() => onEdit(row)} className="h-7 text-xs gap-1"><Edit size={12} />编辑</Button>}
-                    {onDelete && <Button variant="ghost" size="sm" onClick={() => onDelete(row)} className="h-7 text-xs gap-1 text-red-600 hover:text-red-500"><Trash2 size={12} />删除</Button>}
+                    {onAction && row.status === '待处理' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'handle')} className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"><Check size={12} />处理</Button>}
+                    {onAction && row.status === '待审核' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'review')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"><CheckCircle2 size={12} />审核</Button>}
+                    {onAction && row.status === '待核实' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'verify')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"><ClipboardCheck size={12} />核实</Button>}
+                    {onAction && row.status === '待确认' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'confirm')} className="h-7 text-xs gap-1 text-sky-600 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"><CheckCircle2 size={12} />确认</Button>}
+                    {onAction && row.status === '处理中' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'close')} className="h-7 text-xs gap-1 text-slate-600 hover:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50"><XCircle size={12} />关闭</Button>}
+                    {onAction && row.reportToCDC === 0 && row.status === '已审核' && <Button variant="ghost" size="sm" onClick={() => onAction(row, 'report-cdc')} className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20"><Upload size={12} />上报CDC</Button>}
+                    {onEdit && <Button variant="ghost" size="sm" onClick={() => onEdit(row)} className="h-7 text-xs gap-1 hover:bg-slate-100 dark:hover:bg-slate-700/50"><Edit size={12} />编辑</Button>}
+                    {onDelete && <Button variant="ghost" size="sm" onClick={() => onDelete(row)} className="h-7 text-xs gap-1 text-red-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={12} />删除</Button>}
                   </div>
                 </td>
               </tr>
@@ -175,9 +208,9 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
   };
 
   return (
-    <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 flex-wrap gap-2">
+    <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 flex-wrap gap-3 pt-3">
       <div className="flex items-center gap-3">
-        <span>共 {total} 条记录</span>
+        <span className="text-xs">共 <span className="font-semibold text-slate-700 dark:text-slate-300">{total}</span> 条记录</span>
         {/* Page size selector */}
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5">
@@ -185,7 +218,7 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
             >
               {pageSizeOptions.map(size => (
                 <option key={size} value={size}>{size}条</option>
@@ -196,13 +229,35 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
       </div>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}
-          className="gap-1"><ArrowLeft size={14} /> 上一页</Button>
-        <span className="px-3">第 {page} / {totalPages || 1} 页</span>
+          className="gap-1 h-8 px-3 text-xs"><ArrowLeft size={14} /> 上一页</Button>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
+            let pageNum: number;
+            if (totalPages <= 5) {
+              pageNum = idx + 1;
+            } else if (page <= 3) {
+              pageNum = idx + 1;
+            } else if (page >= totalPages - 2) {
+              pageNum = totalPages - 4 + idx;
+            } else {
+              pageNum = page - 2 + idx;
+            }
+            return (
+              <button key={pageNum} onClick={() => onPageChange(pageNum)}
+                className={`w-8 h-8 rounded-md text-xs font-medium transition-all duration-200 ${page === pageNum
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}>
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
         <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}
-          className="gap-1">下一页 <ArrowRight size={14} /></Button>
+          className="gap-1 h-8 px-3 text-xs">下一页 <ArrowRight size={14} /></Button>
         {/* Jump to page */}
-        <div className="flex items-center gap-1.5 ml-2">
-          <span className="text-xs text-slate-400">跳转到</span>
+        <div className="flex items-center gap-1.5 ml-1">
+          <span className="text-xs text-slate-400">跳转</span>
           <input
             type="number"
             min={1}
@@ -210,10 +265,10 @@ export function Pagination({ page, total, pageSize = 20, onPageChange, onPageSiz
             value={jumpInput}
             onChange={e => setJumpInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleJumpToPage()}
-            className="w-14 h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center"
+            className="w-14 h-8 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center transition-colors"
             placeholder="页码"
           />
-          <Button variant="outline" size="sm" onClick={handleJumpToPage} className="h-7 text-xs gap-1">
+          <Button variant="outline" size="sm" onClick={handleJumpToPage} className="h-8 text-xs gap-1 px-2.5">
             <Search size={12} /> 跳转
           </Button>
         </div>

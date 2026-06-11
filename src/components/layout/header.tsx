@@ -7,7 +7,7 @@ import { useDarkMode } from '@/components/shared/dark-mode';
 import { NotificationCenter } from '@/components/layout/notifications';
 import { UserProfileDialog } from '@/components/layout/user-profile';
 import { Button } from '@/components/ui/button';
-import { Clock, Sun, Moon, Bell, ChevronDown, ChevronRight, User, LogOut, Home as HomeIcon, Search, X, Command } from 'lucide-react';
+import { Clock, Sun, Moon, Bell, ChevronDown, ChevronRight, User, LogOut, Home as HomeIcon, Search, X, Command, Activity, AlertTriangle, Bug } from 'lucide-react';
 
 // ============ Real-time Clock ============
 function RealTimeClock() {
@@ -62,12 +62,33 @@ function BreadcrumbNav() {
   );
 }
 
+// ============ Search result types ============
+interface SearchResult {
+  id: string;
+  patientId?: string;
+  patientName?: string;
+  dept?: string;
+  type: string;
+  label: string;
+  date?: string;
+  status?: string;
+  warningLevel?: string;
+  diseaseCategory?: string;
+}
+
 // ============ Global Search ============
 function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{
+    patients: SearchResult[];
+    cases: SearchResult[];
+    warnings: SearchResult[];
+  }>({ patients: [], cases: [], warnings: [] });
+  const [searching, setSearching] = useState(false);
   const { userMenus, setActiveMenu } = useAppStore();
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keyboard shortcut Ctrl+K to open search
   useEffect(() => {
@@ -92,6 +113,43 @@ function GlobalSearch() {
     }
   }, [open]);
 
+  // Debounced search across data
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults({ patients: [], cases: [], warnings: [] });
+      return;
+    }
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        // Search menus locally
+        // Search data from API
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setSearchResults(data.data);
+          }
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [query]);
+
   // Flatten menus for search
   const getAllMenuItems = useCallback(() => {
     const items: { name: string; code: string; path: string }[] = [];
@@ -110,10 +168,31 @@ function GlobalSearch() {
     return items;
   }, [userMenus]);
 
-  const allItems = getAllMenuItems();
-  const filtered = query.trim()
-    ? allItems.filter(item => item.name.toLowerCase().includes(query.toLowerCase()) || item.path.toLowerCase().includes(query.toLowerCase()))
+  const allMenuItems = getAllMenuItems();
+  const filteredMenus = query.trim()
+    ? allMenuItems.filter(item => item.name.toLowerCase().includes(query.toLowerCase()) || item.path.toLowerCase().includes(query.toLowerCase()))
     : [];
+
+  const totalDataResults = searchResults.patients.length + searchResults.cases.length + searchResults.warnings.length;
+  const hasResults = filteredMenus.length > 0 || totalDataResults > 0;
+
+  const handleResultClick = (type: string) => {
+    setActiveMenu(type);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const levelColors: Record<string, string> = {
+    '高': 'text-red-500',
+    '中': 'text-amber-500',
+    '低': 'text-blue-500',
+  };
+
+  const categoryColors: Record<string, string> = {
+    '甲类': 'text-red-600',
+    '乙类': 'text-amber-600',
+    '丙类': 'text-teal-600',
+  };
 
   return (
     <>
@@ -123,7 +202,7 @@ function GlobalSearch() {
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 text-sm transition-colors min-w-[180px]"
       >
         <Search size={14} />
-        <span className="flex-1 text-left">搜索菜单...</span>
+        <span className="flex-1 text-left">搜索...</span>
         <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded">
           <Command size={10} />K
         </kbd>
@@ -143,45 +222,143 @@ function GlobalSearch() {
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="搜索菜单或页面..."
+                placeholder="搜索患者、病例、预警、菜单..."
                 className="flex-1 bg-transparent text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none text-sm"
               />
+              {searching && <RefreshCwIcon className="animate-spin text-slate-400" size={16} />}
               <button onClick={() => { setOpen(false); setQuery(''); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X size={16} />
               </button>
             </div>
             {/* Results */}
-            <div className="max-h-72 overflow-y-auto scrollbar-thin">
+            <div className="max-h-80 overflow-y-auto scrollbar-thin">
               {query.trim() === '' ? (
-                <div className="p-4 text-center text-sm text-slate-400">输入关键词搜索菜单</div>
-              ) : filtered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-slate-400">未找到匹配的菜单</div>
+                <div className="p-6 text-center text-sm text-slate-400">
+                  <Search size={32} className="mx-auto mb-2 opacity-30" />
+                  输入关键词搜索患者、病例、预警或菜单
+                </div>
+              ) : !hasResults && !searching ? (
+                <div className="p-6 text-center text-sm text-slate-400">
+                  <Search size={32} className="mx-auto mb-2 opacity-30" />
+                  未找到匹配的结果
+                </div>
               ) : (
-                filtered.map(item => (
-                  <button
-                    key={item.code}
-                    onClick={() => { setActiveMenu(item.code); setOpen(false); setQuery(''); }}
-                    className="w-full text-left px-4 py-3 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-3"
-                  >
-                    <Search size={14} className="text-slate-400 flex-shrink-0" />
+                <div>
+                  {/* Infection cases section */}
+                  {searchResults.patients.length > 0 && (
                     <div>
-                      <div className="text-sm text-slate-800 dark:text-slate-200 font-medium">{item.name}</div>
-                      <div className="text-xs text-slate-400">{item.path}</div>
+                      <div className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-1.5">
+                        <Activity size={12} className="text-emerald-500" /> 感染病例
+                      </div>
+                      {searchResults.patients.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleResultClick('infection-case')}
+                          className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-3"
+                        >
+                          <Activity size={14} className="text-emerald-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-slate-800 dark:text-slate-200 font-medium truncate">{item.patientName} <span className="text-slate-400 font-normal">({item.patientId})</span></div>
+                            <div className="text-xs text-slate-400 truncate">{item.dept} · {item.infectionSite} · {item.status}</div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{item.date?.slice(0, 10)}</span>
+                        </button>
+                      ))}
                     </div>
-                  </button>
-                ))
+                  )}
+
+                  {/* Infectious disease cases section */}
+                  {searchResults.cases.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-1.5">
+                        <Bug size={12} className="text-purple-500" /> 传染病病例
+                      </div>
+                      {searchResults.cases.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleResultClick('infectious-disease-case')}
+                          className="w-full text-left px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center gap-3"
+                        >
+                          <Bug size={14} className="text-purple-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-slate-800 dark:text-slate-200 font-medium truncate">
+                              {item.patientName} <span className={`font-normal ${categoryColors[item.diseaseCategory || ''] || 'text-slate-400'}`}>({item.diseaseCategory})</span>
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">{item.dept} · {item.diseaseName} · {item.status}</div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{item.date?.slice(0, 10)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Warnings section */}
+                  {searchResults.warnings.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-1.5">
+                        <AlertTriangle size={12} className="text-amber-500" /> 预警记录
+                      </div>
+                      {searchResults.warnings.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleResultClick('infection-warning')}
+                          className="w-full text-left px-4 py-2.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-3"
+                        >
+                          <AlertTriangle size={14} className={`${levelColors[item.warningLevel || '低'] || 'text-amber-500'} flex-shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-slate-800 dark:text-slate-200 font-medium truncate">{item.patientName} <span className="text-slate-400 font-normal">({item.patientId})</span></div>
+                            <div className="text-xs text-slate-400 truncate">{item.dept} · {item.warningType} · {item.status}</div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{item.date?.slice(0, 10)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Menu results section */}
+                  {filteredMenus.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-1.5">
+                        <Command size={12} className="text-slate-500" /> 菜单导航
+                      </div>
+                      {filteredMenus.slice(0, 5).map(item => (
+                        <button
+                          key={item.code}
+                          onClick={() => { setActiveMenu(item.code); setOpen(false); setQuery(''); }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3"
+                        >
+                          <Search size={14} className="text-slate-400 flex-shrink-0" />
+                          <div>
+                            <div className="text-sm text-slate-800 dark:text-slate-200 font-medium">{item.name}</div>
+                            <div className="text-xs text-slate-400">{item.path}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             {/* Footer hint */}
             <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 text-[10px] text-slate-400">
               <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px]">ESC</kbd> 关闭</span>
-              <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px]">↑↓</kbd> 导航</span>
-              <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px]">↵</kbd> 选择</span>
+              <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px]">Ctrl+K</kbd> 搜索</span>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function RefreshCwIcon({ className, size }: { className?: string; size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </svg>
   );
 }
 

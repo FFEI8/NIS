@@ -258,6 +258,20 @@ export const INFECTIOUS_DISEASE_TEST_ITEMS: InfectiousDiseaseTestItem[] = [
     riskNote: '戊肝IgM阳性提示急性感染',
   },
   {
+    testItemCode: 'jyxx1834',
+    testItemName: '戊型肝炎病毒抗体IgG(A)',
+    positiveResult: '阳性',
+    diseaseName: '病毒性肝炎',
+    diseaseCode: 'B15-B19',
+    diseaseCategory: '乙类',
+    isNotifiable: 1,
+    reportTimeLimit: 24,
+    testMethod: '血清学',
+    specimenTypes: '血清,全血',
+    warningLevel: '低',
+    riskNote: '戊肝IgG阳性提示既往感染或恢复期，需结合IgM判断',
+  },
+  {
     testItemCode: 'jyxx_ws_gc',
     testItemName: '淋球菌涂片检查(WS)',
     positiveResult: '找到G-双球菌',
@@ -357,7 +371,7 @@ export const HIS_TEST_MAPPINGS: HisTestMapping[] = [
   { hisTestCode: '1690', hisTestName: '衣原体检查(WS)', subItemNo: 1, testItemCode: 'jyxx11895', testItemName: '沙眼衣原体抗原检测' },
   { hisTestCode: '1684', hisTestName: '淋球菌培养(WS)', subItemNo: 1, testItemCode: 'jyxx488', testItemName: '淋球菌培养' },
   { hisTestCode: '8985', hisTestName: '戊型肝炎病毒抗体IgM(WS)', subItemNo: 1, testItemCode: 'jyxx1833', testItemName: '戊型肝炎病毒抗体IgM(A)' },
-  { hisTestCode: '8986', hisTestName: '戊型肝炎病毒抗体IgG(WS)', subItemNo: 1, testItemCode: 'jyxx1833', testItemName: '戊型肝炎病毒抗体IgM(A)' },
+  { hisTestCode: '8986', hisTestName: '戊型肝炎病毒抗体IgG(WS)', subItemNo: 1, testItemCode: 'jyxx1834', testItemName: '戊型肝炎病毒抗体IgG(A)' },
 ];
 
 // ============ 预警规则定义 ============

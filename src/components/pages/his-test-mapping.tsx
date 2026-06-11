@@ -62,7 +62,7 @@ function HisMappingForm({ item, onSave, onClose }: { item?: any; onSave: (data: 
             {item ? '编辑HIS检验映射' : '新增HIS检验映射'}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 py-4">
           <div className="col-span-1 sm:col-span-2">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200 dark:border-slate-700">
               <Link2 size={16} className="text-sky-500" />
@@ -209,11 +209,31 @@ export default function HisTestMappingPage() {
     }
   };
 
+  const escapeCsvField = (value: string | number | undefined | null): string => {
+    const str = String(value ?? '');
+    // If the field contains a comma, double quote, or newline, wrap in double quotes
+    // and escape any internal double quotes by doubling them
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
   const handleExport = () => {
+    const headers = ['HIS检验代码', 'HIS检验名称', '子项序号', '系统检验编码', '系统检验名称', '转换规则', '一致性风险', '状态'];
     const csv = [
-      'HIS检验代码,HIS检验名称,子项序号,系统检验编码,系统检验名称,转换规则,一致性风险,状态',
+      headers.map(escapeCsvField).join(','),
       ...data.map(r =>
-        `${r.hisTestCode},${r.hisTestName},${r.subItemNo},${r.testItemCode},${r.testItemName},${r.transformRule || ''},${r.consistencyRisk || ''},${r.status === 1 ? '启用' : '禁用'}`
+        [
+          escapeCsvField(r.hisTestCode),
+          escapeCsvField(r.hisTestName),
+          escapeCsvField(r.subItemNo),
+          escapeCsvField(r.testItemCode),
+          escapeCsvField(r.testItemName),
+          escapeCsvField(r.transformRule || ''),
+          escapeCsvField(r.consistencyRisk || ''),
+          escapeCsvField(r.status === 1 ? '启用' : '禁用'),
+        ].join(',')
       )
     ].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });

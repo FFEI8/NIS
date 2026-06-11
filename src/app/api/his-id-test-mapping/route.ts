@@ -39,6 +39,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    // Validate required fields
+    const { hisTestCode, hisTestName, testItemCode, testItemName } = body;
+    if (!hisTestCode || !hisTestName || !testItemCode || !testItemName) {
+      return NextResponse.json(
+        { success: false, message: '缺少必填字段: hisTestCode, hisTestName, testItemCode, testItemName' },
+        { status: 400 }
+      );
+    }
+
     const item = await db.hisInfectiousDiseaseTestMapping.create({ data: body });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (error: any) {

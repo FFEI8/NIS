@@ -42,7 +42,7 @@ function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data
     setSaving(false);
   };
 
-  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
+  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -53,7 +53,7 @@ function DiseaseAlertForm({ item, onSave, onClose }: { item?: any; onSave: (data
             {item ? '编辑传染病预警' : '新增传染病预警'}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-2 gap-4 py-4">
           <FormField label="预警类型" required><select value={form.alertType} onChange={e => setForm(f => ({ ...f, alertType: e.target.value }))} className={selectClass}>{alertTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select></FormField>
           <FormField label="预警等级" required><select value={form.alertLevel} onChange={e => setForm(f => ({ ...f, alertLevel: e.target.value }))} className={selectClass}>{alertLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}</select></FormField>
           <FormField label="传染病名称"><Input value={form.diseaseName} onChange={e => setForm(f => ({ ...f, diseaseName: e.target.value }))} /></FormField>
@@ -167,17 +167,17 @@ export default function DiseaseAlertPage() {
       <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">法定传染病预警、聚集性疫情预警、症状监测预警管理</p>
       <div className="flex gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex-wrap">
         <select value={filter.alertType} onChange={e => setFilter(f => ({ ...f, alertType: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部预警类型</option>
           {alertTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.alertLevel} onChange={e => setFilter(f => ({ ...f, alertLevel: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部等级</option>
           {alertLevelOptions.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           {alertStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>

@@ -160,7 +160,7 @@ function RuleTestResultDialog({ open, onClose, result }: { open: boolean; onClos
           </DialogTitle>
           <DialogDescription>{result.ruleName} ({result.ruleCode})</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           {/* Test outcome */}
           <div className={`p-4 rounded-lg border-2 ${result.wouldTrigger ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}>
             <div className="flex items-center gap-2 mb-2">
@@ -252,7 +252,7 @@ function RuleDetailDialog({ open, onClose, rule }: { open: boolean; onClose: () 
           </DialogTitle>
           <DialogDescription>查看预警规则的完整配置信息</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           {/* Header */}
           <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
             <div>
@@ -377,7 +377,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
           </DialogTitle>
           <DialogDescription>{item ? '修改预警规则配置' : '配置智能预警规则参数'}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-5 py-2">
+        <div className="space-y-5 py-4">
           {/* Basic Info */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -395,14 +395,14 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则分类</label>
                 <select value={form.category} onChange={e => updateField('category', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {useConfigStore.getState().getDictNames('rule_category').map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则类型</label>
                 <select value={form.ruleType} onChange={e => updateField('ruleType', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {useConfigStore.getState().getDictNames('rule_type').map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -410,10 +410,13 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">规则描述</label>
               <textarea value={form.description} onChange={e => updateField('description', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 min-h-[60px]"
+                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 min-h-[60px] transition-colors"
                 placeholder="描述此预警规则的用途和触发场景" />
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-100 dark:border-slate-700/50" />
 
           {/* MDRO monitoring config - show when category is MDRO */}
           {form.category === '多重耐药菌' && (
@@ -442,6 +445,8 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
                   })}
                 </div>
               </div>
+              {/* Divider */}
+              <div className="border-t border-slate-100 dark:border-slate-700/50" />
             </div>
           )}
 
@@ -454,7 +459,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">监测字段</label>
                 <select value={form.conditionField} onChange={e => updateField('conditionField', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   <optgroup label="多重耐药菌">
                     <option value="mdroDetection">MDRO检出</option>
                     <option value="mdroCount">MDRO检出数量</option>
@@ -488,7 +493,7 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">运算符</label>
                 <select value={form.conditionOperator} onChange={e => updateField('conditionOperator', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {Object.entries(OPERATOR_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
@@ -505,12 +510,15 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">条件类型</label>
                 <select value={form.conditionType} onChange={e => updateField('conditionType', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {['大于', '小于', '等于', '包含', '趋势上升', '趋势下降', '时间超限'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-100 dark:border-slate-700/50" />
 
           {/* Warning Config */}
           <div className="space-y-3">
@@ -521,26 +529,29 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警级别</label>
                 <select value={form.warningLevel} onChange={e => updateField('warningLevel', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {getDictNames('warning_level').map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">预警类型</label>
                 <select value={form.warningType} onChange={e => updateField('warningType', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {getDictNames('warning_type').map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">触发动作</label>
                 <select value={form.actionType} onChange={e => updateField('actionType', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                   {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-100 dark:border-slate-700/50" />
 
           {/* Scope */}
           <div className="space-y-3">
@@ -562,6 +573,9 @@ function WarningRuleForm({ item, onSave, onClose }: { item?: any; onSave: (data:
               </div>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-100 dark:border-slate-700/50" />
 
           {/* Other */}
           <div className="grid grid-cols-2 gap-3">
@@ -642,7 +656,7 @@ function QuickCreateMDRODialog({ open, onClose, onSave }: { open: boolean; onClo
           </DialogTitle>
           <DialogDescription>一键创建5种多重耐药菌的预警规则，每种菌配有推荐默认参数</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="space-y-3 py-4">
           {/* Summary header */}
           <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <div className="flex items-center gap-2 mb-1">

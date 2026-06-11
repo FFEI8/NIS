@@ -212,15 +212,19 @@ export default function Home() {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     fetch('/api/seed', { method: 'POST', signal: controller.signal })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) {
+          throw new Error(`Seed failed with status ${r.status}`);
+        }
+        return r.json();
+      })
       .then(d => {
         console.log('Seed result:', d);
         localStorage.setItem('hims-seed-done', 'true');
       })
       .catch(e => {
-        console.log('Seed already done or error:', e);
-        // Mark as done even on error to avoid infinite retries
-        localStorage.setItem('hims-seed-done', 'true');
+        console.error('Seed error:', e);
+        // Don't set hims-seed-done on failure so it can be retried
       })
       .finally(() => {
         clearTimeout(timeoutId);

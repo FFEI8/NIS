@@ -45,7 +45,7 @@ function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave
     setSaving(false);
   };
 
-  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
+  const selectClass = "w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500";
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -56,7 +56,7 @@ function SymptomSurveillanceForm({ item, onSave, onClose }: { item?: any; onSave
             {item ? '编辑症状监测' : '新增症状监测'}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-2 gap-4 py-4">
           <FormField label="科室" required><select value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value }))} className={selectClass}>{deptOptions.map(d => <option key={d} value={d}>{d}</option>)}</select></FormField>
           <FormField label="患者ID"><Input value={form.patientId} onChange={e => setForm(f => ({ ...f, patientId: e.target.value }))} /></FormField>
           <FormField label="患者姓名" required><Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} /></FormField>
@@ -165,22 +165,22 @@ export default function SymptomSurveillancePage() {
       <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">发热、腹泻等症状群的监测、核实与聚集性预警</p>
       <div className="flex gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex-wrap">
         <select value={filter.symptomGroup} onChange={e => setFilter(f => ({ ...f, symptomGroup: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部症状群</option>
           {symptomGroupOptions.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select value={filter.dept} onChange={e => setFilter(f => ({ ...f, dept: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部科室</option>
           {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.isClustered} onChange={e => setFilter(f => ({ ...f, isClustered: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">是否聚集性</option>
           <option value="1">是</option>
           <option value="0">否</option>

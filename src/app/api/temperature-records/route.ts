@@ -1,21 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getPaginationParams } from '@/lib/api-utils';
-
-// Calculate fever level based on temperature
-function calculateFeverLevel(temperature: number): { isAbnormal: number; isFever: number; feverLevel: string } {
-  if (temperature < 37.3) {
-    return { isAbnormal: 0, isFever: 0, feverLevel: '正常' };
-  } else if (temperature < 38.0) {
-    return { isAbnormal: 1, isFever: 0, feverLevel: '低热' };
-  } else if (temperature < 39.0) {
-    return { isAbnormal: 1, isFever: 1, feverLevel: '中度发热' };
-  } else if (temperature < 41.0) {
-    return { isAbnormal: 1, isFever: 1, feverLevel: '高热' };
-  } else {
-    return { isAbnormal: 1, isFever: 1, feverLevel: '超高热' };
-  }
-}
+import { calculateFeverLevel } from '@/lib/fever-utils';
 
 // Process fever auto-warning: create SymptomSurveillance + WarningRecord
 async function processFeverAutoWarning(record: any, createdId: string) {

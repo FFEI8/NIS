@@ -44,7 +44,7 @@ function RoleForm({ item, permissions, menus, onSave, onClose }: { item?: any; p
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><ShieldHalf size={20} className="text-emerald-500" /> {item ? '编辑角色' : '新增角色'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField label="角色编码" required><Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></FormField>
             <FormField label="角色名称" required><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>

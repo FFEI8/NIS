@@ -81,7 +81,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
             {item ? '编辑传染病病例' : '新增传染病病例'}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           <div>
             <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1.5"><User size={14} /> 患者基本信息</h4>
             <div className="grid grid-cols-2 gap-4">
@@ -89,7 +89,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
               <FormField label="患者姓名" required><Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} /></FormField>
               <FormField label="性别">
                 <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="男">男</option><option value="女">女</option>
                 </select>
               </FormField>
@@ -104,7 +104,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
             <div className="grid grid-cols-2 gap-4">
               <FormField label="传染病名称" required>
                 <select value={form.diseaseName} onChange={e => handleDiseaseNameChange(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="">请选择</option>
                   {diseaseOptions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
@@ -117,13 +117,13 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
               <FormField label="ICD-10编码"><Input value={form.diseaseCode} onChange={e => setForm(f => ({ ...f, diseaseCode: e.target.value }))} /></FormField>
               <FormField label="报告类型">
                 <select value={form.reportType} onChange={e => setForm(f => ({ ...f, reportType: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   {reportTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </FormField>
               <FormField label="严重程度">
                 <select value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   {severityOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </FormField>
@@ -137,7 +137,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
             <div className="grid grid-cols-2 gap-4">
               <FormField label="报告科室" required>
                 <select value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </FormField>
@@ -153,7 +153,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
             <div className="grid grid-cols-2 gap-4">
               <FormField label="隔离方式">
                 <select value={form.isolationType} onChange={e => setForm(f => ({ ...f, isolationType: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="">请选择</option>
                   {isolationTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -161,7 +161,7 @@ function InfectiousDiseaseCaseForm({ item, onSave, onClose }: { item?: any; onSa
               <FormField label="隔离开始日期"><Input type="date" value={form.isolationDate} onChange={e => setForm(f => ({ ...f, isolationDate: e.target.value }))} /></FormField>
               <FormField label="转归">
                 <select value={form.outcome} onChange={e => setForm(f => ({ ...f, outcome: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                  className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
                   <option value="">请选择</option>
                   {outcomeOptions.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
@@ -277,17 +277,17 @@ export default function InfectiousDiseaseCasePage() {
       <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">法定传染病病例的报告、审核与CDC上报管理</p>
       <div className="flex gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex-wrap">
         <select value={filter.diseaseCategory} onChange={e => setFilter(f => ({ ...f, diseaseCategory: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部分类</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filter.dept} onChange={e => setFilter(f => ({ ...f, dept: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部科室</option>
           {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>

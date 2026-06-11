@@ -7,6 +7,11 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
+    // Validate input
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password.trim()) {
+      return NextResponse.json({ success: false, message: '请输入用户名和密码' }, { status: 400 });
+    }
+
     // Step 1: Find user with minimal data + role IDs only
     const user = await db.user.findUnique({
       where: { username },
@@ -117,6 +122,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    console.error('[auth/login] Internal error:', error);
+    return NextResponse.json({ success: false, message: '服务器内部错误' }, { status: 500 });
   }
 }

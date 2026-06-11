@@ -703,6 +703,63 @@ Stage Summary:
 ### 当前系统包含：
 - **20个数据库模型** + **28个菜单项** + **60个权限项**
 - 菜单隐藏/显示功能完整可用（4层防御：后端过滤 + API回退查找 + 前端过滤 + 会话恢复）
+
+---
+Task ID: 7
+Agent: Style Enhancement Agent
+Task: Style details and interaction optimization
+
+Work Log:
+- **Login page visual polish** (/src/components/layout/login-page.tsx):
+  - Added deep box-shadow with inset highlight to login card (`shadow-[0_8px_32px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)_inset]`)
+  - Added subtle gradient background to login card (`bg-gradient-to-br from-white/15 via-white/10 to-white/5`)
+  - Improved demo account buttons with per-role accent colors (emerald/amber/sky), colored hover backgrounds, and active:scale-95 press effect
+  - Enhanced password visibility toggle with hover:bg-white/10, rounded-md container, and focus ring
+  - Added border to demo accounts section container
+- **Sidebar UX improvements** (/src/components/layout/sidebar.tsx):
+  - Added subtle divider lines between top-level menu groups (`border-t border-slate-700/50`)
+  - Added hover:scale-[1.02] animation on menu item hover
+  - Enhanced active menu indicator: border-l-[3px] border-emerald-500 + bg-emerald-600/20 background highlight
+  - Improved collapsed sidebar tooltips with border, larger padding, and transition-all
+  - Made active left border indicator taller (h-6) and brighter glow (shadow-[0_0_10px_rgba(16,185,129,0.6)])
+  - Added transition-colors duration-200 to menu icons
+- **Dashboard card enhancements** (/src/components/pages/dashboard.tsx):
+  - Added hover:-translate-y-1 animation on stat cards for lift effect
+  - Added gradient background overlay per card that intensifies on hover (opacity-[0.04] → opacity-[0.08])
+  - Made stat card content relative to layer above gradient overlay
+  - Enhanced circular progress indicators with hover:-translate-y-0.5, larger size (64), thicker stroke (6)
+  - Added color-coded status text for circular progress (emerald/amber/rose) with ✓/⚠/✗ indicators
+- **CircularProgress animation improvement** (/src/components/shared/animated.tsx):
+  - Changed from static offset to animated offset using useState + useEffect
+  - Added 80ms delay to trigger CSS transition from empty to filled state
+  - Changed transition from `1s ease-out` to `1.2s cubic-bezier(0.4, 0, 0.2, 1)` for smoother easing
+- **Data table interactions** (/src/components/shared/data-table.tsx):
+  - Added column sorting with sort indicator arrow (↑) that flips for desc
+  - Added hover:bg-slate-100 on sortable column headers
+  - Enhanced alternating row colors with explicit bg-white/bg-slate-50 pattern
+  - Improved row hover highlight (bg-emerald-50/70 dark:bg-emerald-900/15)
+  - Added hover:bg-*-50 backgrounds to all action buttons (edit, delete, handle, review, etc.)
+  - Redesigned pagination with page number buttons (5 visible pages), active page in emerald
+  - Styled pagination controls with consistent h-8 sizing and better spacing
+  - Added transition-colors to all interactive elements
+- **Form dialog styling** (Dialog UI + 15 page files):
+  - Enhanced DialogHeader with `pb-3 border-b border-slate-100 dark:border-slate-700/50` divider
+  - Enhanced DialogFooter with `pt-3 border-t border-slate-100 dark:border-slate-700/50` divider
+  - Changed Dialog overlay from `bg-black/50` to `bg-black/60 backdrop-blur-sm`
+  - Changed Dialog border-radius from `rounded-lg` to `rounded-xl` and shadow from `shadow-lg` to `shadow-xl`
+  - Updated form body padding from `py-2` to `py-4` across 15 page components for consistent spacing
+  - Added section dividers (`border-t border-slate-100 dark:border-slate-700/50`) between form sections in warning-rules.tsx
+  - Added `transition-colors` to all select elements across 11 page components
+- **Lint verification**: `bun run lint` passes with 0 errors, 0 warnings
+
+Stage Summary:
+- Login page: gradient card, deep shadow, colored demo buttons, password toggle hover
+- Sidebar: group dividers, hover scale, prominent active indicator with left border + highlight
+- Dashboard: hover lift animation, gradient overlays, smoother circular progress with color-coded status
+- Data table: column sorting, better alternating rows, page number buttons, action button hover backgrounds
+- Dialog: header/footer dividers, backdrop blur, rounded-xl, consistent py-4 padding, section dividers
+- 15+ page components updated with consistent form dialog styling
+- All lint checks pass
 - 疫情看板页面正常（diseaseCategory错误已在之前的代码中修复）
 
 ## 当前目标/已完成的修改/验证结果
@@ -1582,3 +1639,183 @@ Stage Summary:
    - WebSocket实时推送预警提醒
    - 批量审核/批量上报功能
 3. **性能优化**: API分页缓存、前端组件懒加载、大数据量虚拟滚动
+
+---
+Task ID: 5
+Agent: Auth Security Fix Agent
+Task: Fix authentication security issues
+
+Work Log:
+- Read worklog.md and all 5 target files to understand current code
+- Fixed login-page.tsx: Removed password from localStorage "remember me" feature
+  - Changed `localStorage.setItem('hims-remember', JSON.stringify({ username, password }))` → `JSON.stringify({ username })`
+  - Removed `setPassword(data.password || '')` when loading saved remember data
+  - Changed label from "记住密码" to "记住用户名"
+- Fixed login/route.ts: Replaced `error.message` with generic "服务器内部错误" in 500 catch block, added `console.error` for server-side logging
+- Fixed current/route.ts: Same 500 error message fix - replaced `error.message` with "服务器内部错误", added `console.error`
+- Fixed app-store.ts: Added `loginError` state field and specific error message parsing
+  - Login action now parses response body for `message` field on non-200 responses
+  - Status 403 explicitly shows "账户已被禁用"
+  - Default fallback: "用户名或密码错误"
+  - Login page reads error from store via `useAppStore.getState().loginError`
+- Fixed login/route.ts: Added input validation before processing login
+  - Validates username and password are non-empty strings (checks type, null, and trim)
+  - Returns 400 with "请输入用户名和密码" if validation fails
+- Fixed page.tsx: Seed endpoint protection
+  - Removed `localStorage.setItem('hims-seed-done', 'true')` from `.catch()` handler
+  - Added `r.ok` check before parsing JSON - throws on non-200 responses
+  - Only sets `hims-seed-done` to 'true' on successful seed completion
+  - On failure, allows retry on next page load
+- Ran `bun run lint` - 0 errors, 0 warnings
+
+Stage Summary:
+- 5 security fixes applied across 5 files
+- Password no longer stored in localStorage (only username remembered)
+- Internal error details no longer leaked in API 500 responses
+- Disabled accounts show "账户已被禁用" instead of generic error
+- Login endpoint validates input before processing (returns 400 for empty credentials)
+- Seed failure allows retry instead of permanently marking as done
+- All lint checks pass (0 errors, 0 warnings)
+
+---
+Task ID: 4
+Agent: Bug Fix Agent
+Task: Fix critical bugs in HIS code
+
+Work Log:
+- **Bug 1 - Hardcoded localhost:3000 fetch**: Replaced `new URL('/api/temperature-records/stats', 'http://localhost:3000')` + `fetch()` in `/src/app/api/his-mapping/route.ts` (lines 98-99) with direct Prisma DB queries. Now queries temperatureRecord table directly using `db.temperatureRecord.count()` and `db.temperatureRecord.groupBy()` to compute stats (totalRecords, feverCount, abnormalCount, reportedCount, feverLevelBreakdown, deptBreakdown) without any HTTP fetch.
+- **Bug 2 - CSV export doesn't escape commas**: Added `escapeCsvField()` function in `/src/components/pages/his-test-mapping.tsx` that wraps fields in double quotes when they contain commas, double quotes, or newlines, and escapes internal double quotes by doubling them. Updated `handleExport()` to use this function for both headers and data rows.
+- **Bug 3 - Inconsistent soft/hard delete**: Changed `DELETE` handler in `/src/app/api/his-id-test-mapping/[id]/route.ts` from hard delete (`db.hisInfectiousDiseaseTestMapping.delete()`) to soft delete (`db.hisInfectiousDiseaseTestMapping.update({ data: { status: 0 } })`), consistent with his-field-mappings API. Also added existence check before delete.
+- **Bug 4 - PUT has no existence check**: Added existence check in `PUT` handler of `/src/app/api/his-id-test-mapping/[id]/route.ts` - now calls `findUnique()` first and returns 404 if record not found, matching the pattern in his-field-mappings.
+- **Bug 5 - POST has no validation**: Added required field validation in `POST` handler of `/src/app/api/his-id-test-mapping/route.ts` - validates `hisTestCode`, `hisTestName`, `testItemCode`, `testItemName` are present, returns 400 with descriptive message if missing.
+- **Bug 6 - Duplicate fever calculation functions**: Created shared utility file `/src/lib/fever-utils.ts` with `calculateFeverLevel()` function and `FeverLevelResult` interface. Updated both `/src/app/api/temperature-records/route.ts` and `/src/app/api/temperature-records/sync/route.ts` to import from the shared utility instead of having duplicate local definitions.
+- **Bug 7 - Wrong HIS mapping (IgG→IgM)**: In `/src/lib/infectious-disease-warning-rules.ts`, line 360, hisTestCode '8986' (戊型肝炎病毒抗体IgG) was incorrectly mapped to testItemCode 'jyxx1833' (戊型肝炎病毒抗体IgM). Fixed by: (1) adding a new test item `jyxx1834` for 戊型肝炎病毒抗体IgG with appropriate warningLevel '低' and riskNote explaining it indicates past infection/recovery, and (2) updating the HIS mapping for '8986' to point to the new `jyxx1834` / 戊型肝炎病毒抗体IgG(A) instead of the IgM item.
+- Ran `bun run lint` - 0 errors, 0 warnings
+
+Stage Summary:
+- 7 critical bugs fixed across 6 files
+- New shared utility file created: `/src/lib/fever-utils.ts`
+- New test item added: `jyxx1834` (戊型肝炎病毒抗体IgG) in infectious-disease-warning-rules.ts
+- All lint checks pass (0 errors, 0 warnings)
+
+---
+Task ID: 6
+Agent: Code Optimization Agent
+Task: Code optimization and enhancements
+
+Work Log:
+- Removed duplicated AnimatedCounter and CircularProgress components from his-field-mapping.tsx (lines 36-78), replaced with imports from shared module `@/components/shared/animated`
+- Updated AnimatedCounter usage: `<AnimatedCounter value={...}>` → `<AnimatedCounter target={...}>` to match shared component API
+- Standardized toast notifications in his-field-mapping.tsx: Replaced custom toast state (`useState` + `showToast` function + custom JSX) with sonner (`import { toast } from 'sonner'`), converted all `showToast(msg, 'success')` → `toast.success(msg)` and `showToast(msg, 'error')` → `toast.error(msg)`
+- Standardized toast notifications in his-sync-management.tsx: Removed custom `Toast` component (12 lines), removed `toastMsg` state and `showToast` function, replaced all `showToast()` calls with sonner equivalents (`toast.success()`, `toast.error()`, `toast.info()`), removed `toast` prop from `ConfigFormDialog` (now uses sonner directly)
+- Fixed 4 lint warnings in his-sync-management.tsx: Converted ternary expressions used as statements (`condition ? toast.info(...) : toast.success(...)`) to proper if/else statements
+- Added empty state guidance to his-field-mapping.tsx: When no field mappings exist (`data.length === 0 && total === 0`), shows "暂无字段映射数据" message with Inbox icon and "新建映射" CTA button
+- Added loading state to his-field-mapping.tsx: Shows Loader2 spinner with "加载字段映射数据..." text while initial data fetch is in progress
+- Verified setActiveMenu import in his-integration-analysis.tsx: The import is NOT unused — it's called at line 2200 (`setActiveMenu('id-symptom-surveillance')`), so removal was skipped to avoid breaking functionality
+- His-test-mapping.tsx already has loading state via DataTable's built-in loading prop; his-integration-analysis.tsx already has full-page loading spinner; no additional changes needed for these files
+- Added Loader2 and Inbox icon imports to his-field-mapping.tsx
+- All lint checks pass with 0 errors, 0 warnings
+
+Stage Summary:
+- Removed 43 lines of duplicated AnimatedCounter/CircularProgress code from his-field-mapping.tsx
+- Unified toast notifications across HIS pages: his-field-mapping.tsx and his-sync-management.tsx now use sonner (project standard)
+- Added empty state guidance ("暂无字段映射数据" + CTA) to his-field-mapping.tsx
+- Added loading spinner to his-field-mapping.tsx
+- setActiveMenu import verified as used (not removed)
+- All lint checks pass (0 errors, 0 warnings)
+
+---
+Task ID: 8
+Agent: Feature Enhancement Agent
+Task: Add new features and functionality enhancements
+
+Work Log:
+- Created /api/auth/change-password/route.ts - POST endpoint accepting { userId, oldPassword, newPassword }, validates old password matches, min 6 chars for new password
+- Created /src/components/shared/change-password-dialog.tsx - ChangePasswordDialog component with old/new/confirm password fields, show/hide toggles, password strength indicator (weak/medium/strong), validation (min 6 chars, match confirm, not same as old), success animation
+- Added "修改密码" button in user profile dialog (/src/components/layout/user-profile.tsx) with amber styling
+- Enhanced dashboard (/src/components/pages/dashboard.tsx) with auto-refresh: 60-second interval, Play/Pause toggle, manual refresh button, pulsing green dot indicator when active, last refresh time display
+- Created /api/infection-cases/batch-delete/route.ts - POST with { ids: string[] } using Prisma deleteMany
+- Enhanced infection-cases page (/src/components/pages/infection-cases.tsx) with checkbox column (shadcn/ui Checkbox), select all with indeterminate state, batch delete button with count, AlertDialog confirmation, selected row highlighting, batch operation bar
+- Created /api/search/route.ts - GET endpoint with ?q=keyword, searches across InfectionCase, WarningRecord, InfectiousDiseaseCase (5 results each)
+- Enhanced header GlobalSearch (/src/components/layout/header.tsx) with debounced API search (300ms), grouped results (感染病例/传染病病例/预警记录/菜单导航), category icons and color coding, Ctrl+K shortcut
+- Fixed lint error in dashboard.tsx (setLoading in useEffect → restructured with cancellation pattern)
+- Fixed unused eslint-disable in infection-cases.tsx
+- All lint checks pass (0 errors, 0 warnings)
+
+Stage Summary:
+- 4 new features implemented: password change, dashboard auto-refresh, batch delete, quick search
+- 3 new API endpoints: /api/auth/change-password, /api/infection-cases/batch-delete, /api/search
+- 1 new component file: change-password-dialog.tsx
+- 4 modified component files: user-profile.tsx, dashboard.tsx, infection-cases.tsx, header.tsx
+- All APIs verified working via curl
+- Lint: 0 errors, 0 warnings
+
+---
+Task ID: Session-Resume-1
+Agent: Main Developer (Session Continuation)
+Task: 修复密码登录错误，全面审查和改进HIS模块及认证系统
+
+Work Log:
+- **诊断并修复数据库损坏问题**: SQLite数据库disk image malformed，导致所有API返回500。删除损坏的DB文件，重新创建并seed。
+- **修复seed路由的删除顺序问题**: 原来使用Promise.all并行删除所有表，导致外键约束冲突。改为按依赖顺序依次删除（子表先删，父表后删）。
+- **修复InfectiousDiseaseTestItem的createMany唯一约束冲突**: 将createMany改为upsert循环，避免重复插入。
+- **全面审查HIS FieldMapping模块**: 发现3个严重bug、7个普通bug、10+缺失功能、7个样式问题、8个代码质量问题。
+- **全面审查认证系统**: 发现密码明文存储、无服务端会话、未认证身份查询端点、密码存localStorage等严重安全问题。
+- **修复7个关键bug**: 硬编码localhost替换为直接DB查询、CSV导出转义、软删除一致性、PUT存在性检查、POST输入验证、提取共享发热计算函数、修复IgG→IgM映射错误。
+- **修复5个认证安全问题**: 记住我不存密码、500响应不泄露内部详情、显示特定错误消息(账户被禁用)、登录输入验证、seed失败可重试。
+- **代码优化**: 去除his-field-mapping.tsx中重复的AnimatedCounter/CircularProgress、统一toast系统为sonner、添加空状态引导、添加加载状态。
+- **样式增强**: 登录页视觉打磨(阴影/渐变/悬停效果)、侧边栏UX(分隔线/缩放动画/活跃指示器)、仪表盘卡片(悬停动画/渐变背景)、数据表格(排序/交替行色/分页改进)、对话框(分隔线/圆角/阴影)。
+- **新增功能**: 密码修改功能(API+对话框)、仪表盘60秒自动刷新、感染病例批量删除、全局搜索(Ctrl+K)。
+- **创建定时审查任务**: 每15分钟自动触发webDevReview。
+
+Stage Summary:
+- 数据库损坏问题已修复，seed数据正常初始化
+- 7个关键bug已修复(HIS相关)
+- 5个认证安全改进已实施
+- 代码优化完成(去重、统一toast、空状态、加载状态)
+- 样式全面增强(登录页、侧边栏、仪表盘、表格、对话框)
+- 4个新功能已添加(密码修改、自动刷新、批量删除、全局搜索)
+- 定时审查任务已创建(每15分钟)
+- Lint检查: 0 errors, 0 warnings
+
+## 项目当前状态描述/判断
+
+**状态**: 密码登录错误已修复，HIS模块和认证系统已全面审查和改进
+
+系统当前包含：
+- **30+数据库模型**: 涵盖系统管理、感染监测、传染病管理、预警规则、微生物检验、HIS对接等
+- **31个菜单项**: 完整的导航结构
+- **69个权限项**: 细粒度权限控制
+- **5个用户**: admin/admin123, gkzj/123456, doctor/123456, nurse/123456, zljc/123456
+
+## 当前目标/已完成的修改/验证结果
+
+**本轮完成**:
+1. ✅ 修复SQLite数据库损坏（删除+重建+seed）
+2. ✅ 修复seed路由删除顺序和唯一约束问题
+3. ✅ 全面审查HIS FieldMapping模块（发现3严重+7普通bug）
+4. ✅ 全面审查认证系统（发现6严重安全问题）
+5. ✅ 修复7个关键bug（localhost、CSV、软删除、验证、共享函数、映射错误）
+6. ✅ 修复5个认证安全问题（密码存储、错误泄露、输入验证等）
+7. ✅ 代码优化（去重、统一toast、空状态、加载状态）
+8. ✅ 样式全面增强（5大模块交互优化）
+9. ✅ 新增4个功能（密码修改、自动刷新、批量删除、全局搜索）
+10. ✅ 创建定时审查任务
+
+**验证结果**:
+- curl测试：登录API返回200，数据正确
+- seed测试：初始化成功，5用户、3角色、69权限、31菜单
+- lint检查：0 errors, 0 warnings
+
+## 未解决问题或风险，建议下一阶段优先事项
+
+1. **HIS同步管理API缺失**: /api/his-sync/* 整个后端模块不存在，his-sync-management.tsx页面的8+个API端点全部缺失。需要创建SyncConfig/SyncLog模型和完整CRUD路由。
+2. **服务器稳定性**: Next.js dev server在sandbox中登录后频繁崩溃，可能是内存限制导致。
+3. **认证架构需重构**: 当前仍为客户端认证(zustand+localStorage)，生产环境需实施服务端会话(httpOnly cookie + JWT)。
+4. **API认证中间件缺失**: 所有API端点无认证检查，任何人可访问。
+5. **建议下一步**:
+   - 实现HIS同步管理后端API
+   - 添加API认证中间件
+   - 实现密码哈希(bcrypt)
+   - 添加ECharts交互图表替代纯CSS图表
+   - 完善移动端响应式适配

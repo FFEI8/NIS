@@ -78,7 +78,7 @@ function LabResultDetailDialog({ open, onClose, item }: { open: boolean; onClose
           </DialogTitle>
           <DialogDescription>查看微生物检验结果的完整信息</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           {/* Header summary */}
           <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
             <div>
@@ -378,17 +378,17 @@ export default function MicroLabResultsPage() {
         <Input placeholder="搜索患者ID/检验项目" value={filter.keyword} onChange={e => setFilter(f => ({ ...f, keyword: e.target.value }))}
           className="w-48" />
         <select value={filter.specimenType} onChange={e => setFilter(f => ({ ...f, specimenType: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部标本</option>
           {specimenOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filter.mdroType} onChange={e => setFilter(f => ({ ...f, mdroType: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部MDRO</option>
           {Object.entries(mdroTypeMap).map(([k, v]) => <option key={k} value={k}>{v.label} - {v.fullName}</option>)}
         </select>
         <select value={filter.isAbnormal} onChange={e => setFilter(f => ({ ...f, isAbnormal: e.target.value }))}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
           <option value="">全部状态</option>
           <option value="1">异常</option>
           <option value="0">正常</option>

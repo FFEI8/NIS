@@ -69,7 +69,6 @@ export default function LoginPage() {
         const data = JSON.parse(saved);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setUsername(data.username || '');
-        setPassword(data.password || '');
         setRemember(true);
       } catch { /* ignore */ }
     }
@@ -101,9 +100,11 @@ export default function LoginPage() {
     setError('');
     const success = await login(username, password);
     if (!success) {
-      setError('用户名或密码错误');
+      // Read the specific error message from the store (set during login)
+      const { loginError: errMsg } = useAppStore.getState();
+      setError(errMsg || '用户名或密码错误');
     } else if (remember) {
-      localStorage.setItem('hims-remember', JSON.stringify({ username, password }));
+      localStorage.setItem('hims-remember', JSON.stringify({ username }));
     } else {
       localStorage.removeItem('hims-remember');
     }
@@ -122,7 +123,7 @@ export default function LoginPage() {
       <ParticleBackground />
 
       <div className={`relative w-full max-w-md mx-4 transition-all duration-700 ease-out ${entranceComplete ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
+        <div className="bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)_inset]">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 mb-4 transition-transform duration-300 hover:scale-110">
               <Hospital size={32} className="text-emerald-400" />
@@ -172,7 +173,7 @@ export default function LoginPage() {
                   placeholder="请输入密码"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 -mr-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -188,7 +189,7 @@ export default function LoginPage() {
                 className={`w-4 h-4 rounded border flex items-center justify-center transition-all focus:ring-2 focus:ring-emerald-500/50 ${remember ? 'bg-emerald-600 border-emerald-500' : 'bg-white/10 border-white/30'}`}>
                 {remember && <Check size={12} className="text-white" />}
               </button>
-              <span className="text-sm text-slate-400">记住密码</span>
+              <span className="text-sm text-slate-400">记住用户名</span>
             </div>
 
             {error && (
@@ -213,18 +214,18 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-white/5 rounded-xl">
-            <p className="text-slate-400 text-xs text-center mb-2">演示账号</p>
+          <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/5">
+            <p className="text-slate-400 text-xs text-center mb-3">演示账号</p>
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
-                { label: '管理员', user: 'admin', pass: 'admin123' },
-                { label: '感控专员', user: 'gkzj', pass: '123456' },
-                { label: '临床医师', user: 'doctor', pass: '123456' },
+                { label: '管理员', user: 'admin', pass: 'admin123', accent: 'text-emerald-400', hoverBg: 'hover:bg-emerald-500/15 hover:border-emerald-500/30' },
+                { label: '感控专员', user: 'gkzj', pass: '123456', accent: 'text-amber-400', hoverBg: 'hover:bg-amber-500/15 hover:border-amber-500/30' },
+                { label: '临床医师', user: 'doctor', pass: '123456', accent: 'text-sky-400', hoverBg: 'hover:bg-sky-500/15 hover:border-sky-500/30' },
               ].map(d => (
                 <button key={d.user} type="button" onClick={() => handleDemoClick(d.user, d.pass)}
-                  className="text-center p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:outline-none">
-                  <div className="text-emerald-400 font-medium">{d.label}</div>
-                  <div className="text-slate-500">{d.user}</div>
+                  className={`text-center p-2.5 bg-white/5 rounded-lg border border-transparent ${d.hoverBg} transition-all duration-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:outline-none active:scale-95`}>
+                  <div className={`${d.accent} font-medium`}>{d.label}</div>
+                  <div className="text-slate-500 mt-0.5">{d.user}</div>
                 </button>
               ))}
             </div>

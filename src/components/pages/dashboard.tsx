@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DashboardStats } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedCounter, CircularProgress } from '@/components/shared/animated';
-import { Activity, AlertTriangle, Bug, Pill, Hand, ShieldCheck, HardHat, ShieldAlert, TrendingDown, TrendingUp, Zap, CheckCircle2, AlertCircle, BarChart3, PieChart, Microscope, Droplets, FileSpreadsheet, Hospital, Clock, Plus, Bell, Sun, Moon } from 'lucide-react';
+import { Activity, AlertTriangle, Bug, Pill, Hand, ShieldCheck, HardHat, ShieldAlert, TrendingDown, TrendingUp, Zap, CheckCircle2, AlertCircle, BarChart3, PieChart, Microscope, Droplets, FileSpreadsheet, Hospital, Clock, Plus, Bell, Sun, Moon, RefreshCw, Pause, Play } from 'lucide-react';
 import { useAppStore } from '@/store/app-store';
+import { Button } from '@/components/ui/button';
 
 // ============ Real-time Clock Component ============
 function DashboardClock() {
@@ -58,21 +59,23 @@ function MiniSparkline({ data, color = '#10b981', width = 80, height = 28 }: { d
 }
 
 // ============ Recent Warnings Mini-List ============
-function RecentWarnings() {
+function RecentWarnings({ refreshTrigger }: { refreshTrigger: number }) {
   const [warnings, setWarnings] = useState<Array<{ id: string; patientName: string; dept: string; warningLevel: string; description: string; createdAt: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     fetch('/api/warnings?pageSize=5')
       .then(r => r.json())
       .then(d => {
-        if (d.success && d.data?.items) {
+        if (!cancelled && d.success && d.data?.items) {
           setWarnings(d.data.items.slice(0, 5));
         }
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [refreshTrigger]);
 
   const levelColors: Record<string, string> = {
     '高': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -128,12 +131,53 @@ function RecentWarnings() {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    fetch('/api/dashboard').then(r => r.json()).then(d => {
-      if (d.success) setStats(d.data);
-    }).finally(() => setLoading(false));
+  const fetchStats = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setIsRefreshing(true);
+    try {
+      const res = await fetch('/api/dashboard');
+      const d = await res.json();
+      if (d.success) {
+        setStats(d.data);
+        setLastRefreshTime(new Date());
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    void fetchStats();
+  }, [fetchStats]);
+
+  // Auto-refresh logic
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(() => {
+        void fetchStats(true);
+        setRefreshTrigger(prev => prev + 1);
+      }, 60000);
+    } else {
+      if (autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+        autoRefreshRef.current = null;
+      }
+    }
+    return () => {
+      if (autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+      }
+    };
+  }, [autoRefresh, fetchStats]);
 
   if (loading) return (
     <div className="space-y-6">
@@ -169,29 +213,69 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome + Clock Header */}
+      {/* Welcome + Clock Header with Auto-Refresh */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">感染监控概览</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">实时监控医院感染相关指标</p>
         </div>
-        <DashboardClock />
+        <div className="flex items-center gap-3">
+          <DashboardClock />
+          {/* Auto-refresh controls */}
+          <div className="flex items-center gap-2 ml-2">
+            <Button
+              variant={autoRefresh ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`gap-1.5 h-8 text-xs ${autoRefresh ? 'bg-emerald-600 hover:bg-emerald-500' : ''}`}
+            >
+              {autoRefresh ? <Pause size={14} /> : <Play size={14} />}
+              {autoRefresh ? '暂停' : '自动刷新'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { void fetchStats(true); setRefreshTrigger(prev => prev + 1); }}
+              disabled={isRefreshing}
+              className="gap-1.5 h-8 text-xs"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              刷新
+            </Button>
+            {/* Auto-refresh indicator */}
+            <div className="flex items-center gap-1.5">
+              {autoRefresh && (
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+              )}
+              {lastRefreshTime && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                  更新于 {lastRefreshTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stat cards with gradient backgrounds, shadows and sparklines */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
-          <div key={i} className={`relative overflow-hidden p-4 rounded-xl border ${card.bgLight} ${card.border} ${card.darkBg} ${card.darkBorder} transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group`}>
+          <div key={i} className={`relative overflow-hidden p-4 rounded-xl border ${card.bgLight} ${card.border} ${card.darkBg} ${card.darkBorder} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] group`}>
+            {/* Gradient accent background overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-300`} />
             {/* Gradient accent bar at top */}
             <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient} opacity-80`} />
-            <div className="flex items-center justify-between mb-2">
+            <div className="relative flex items-center justify-between mb-2">
               <div className={`opacity-80 ${card.text} ${card.darkText}`}>{card.icon}</div>
               <span className={`text-[10px] opacity-60 flex items-center gap-0.5 ${card.text} ${card.darkText}`}>{card.trendIcon}{card.trend}</span>
             </div>
-            <div className={`text-2xl font-bold ${card.text} ${card.darkText}`}>
+            <div className={`relative text-2xl font-bold ${card.text} ${card.darkText}`}>
               <AnimatedCounter target={card.value} suffix={card.suffix || ''} />
             </div>
-            <div className={`text-xs opacity-70 mt-1 ${card.text} ${card.darkText}`}>{card.label}</div>
+            <div className={`relative text-xs opacity-70 mt-1 ${card.text} ${card.darkText}`}>{card.label}</div>
             {/* Mini sparkline */}
             {card.sparkData.length >= 2 && (
               <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -205,14 +289,14 @@ export default function DashboardPage() {
       {/* Circular progress indicators */}
       <div className="grid grid-cols-3 gap-4">
         {circularData.map((item, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:shadow-md transition-all">
+          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
             <div className="relative">
-              <CircularProgress value={item.value} size={56} strokeWidth={5} color={item.color} />
+              <CircularProgress value={item.value} size={64} strokeWidth={6} color={item.color} />
               <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-800 dark:text-slate-200">{item.value}%</div>
             </div>
             <div>
               <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.label}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.value >= 80 ? '达标' : item.value >= 60 ? '待改善' : '需关注'}</div>
+              <div className={`text-xs mt-0.5 font-medium ${item.value >= 80 ? 'text-emerald-500' : item.value >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>{item.value >= 80 ? '✓ 达标' : item.value >= 60 ? '⚠ 待改善' : '✗ 需关注'}</div>
             </div>
           </div>
         ))}
@@ -315,7 +399,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Warnings Section */}
-      <RecentWarnings />
+      <RecentWarnings refreshTrigger={refreshTrigger} />
     </div>
   );
 }

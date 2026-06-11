@@ -34,7 +34,7 @@ function EnvMonitorForm({ onSave, onClose }: { onSave: (data: any) => void; onCl
 
   return (
     <>
-      <div className="space-y-3 py-2">
+      <div className="space-y-4 py-4">
         {[
           { label: '科室', key: 'dept', type: 'select', options: deptOptions, required: true },
           { label: '采样点', key: 'samplePoint', type: 'text', required: true },
@@ -47,7 +47,7 @@ function EnvMonitorForm({ onSave, onClose }: { onSave: (data: any) => void; onCl
           <FormField key={f.key} label={f.label} required={f.required}>
             {f.type === 'select' ? (
               <select value={(form as any)[f.key]} onChange={e => setForm(fm => ({ ...fm, [f.key]: e.target.value }))}
-                className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                 {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : (

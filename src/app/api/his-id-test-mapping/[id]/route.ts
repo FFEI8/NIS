@@ -15,6 +15,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+
+    // Check existence first
+    const existing = await db.hisInfectiousDiseaseTestMapping.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ success: false, message: '未找到该映射记录' }, { status: 404 });
+    }
+
     const body = await request.json();
     const item = await db.hisInfectiousDiseaseTestMapping.update({ where: { id }, data: body });
     return NextResponse.json({ success: true, data: item });
@@ -26,7 +33,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await db.hisInfectiousDiseaseTestMapping.delete({ where: { id } });
+
+    // Check existence first
+    const existing = await db.hisInfectiousDiseaseTestMapping.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ success: false, message: '未找到该映射记录' }, { status: 404 });
+    }
+
+    // Soft delete: set status=0 (consistent with his-field-mappings)
+    await db.hisInfectiousDiseaseTestMapping.update({ where: { id }, data: { status: 0 } });
     return NextResponse.json({ success: true, message: '删除成功' });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });

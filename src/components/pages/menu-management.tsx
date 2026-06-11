@@ -39,10 +39,10 @@ function MenuForm({ item, menus, onSave, onClose }: { item?: any; menus: any[]; 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><MenuIcon size={20} className="text-emerald-500" /> {item ? '编辑菜单' : '新增菜单'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="space-y-4 py-4">
           <FormField label="上级菜单">
             <select value={form.parentId} onChange={e => setForm(f => ({ ...f, parentId: e.target.value }))}
-              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+              className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
               <option value="">无（顶级菜单）</option>
               {menus.filter(m => m.type === 'directory').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
@@ -58,7 +58,7 @@ function MenuForm({ item, menus, onSave, onClose }: { item?: any; menus: any[]; 
           <div className="grid grid-cols-3 gap-3">
             <FormField label="类型">
               <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                className="w-full h-9 px-3 rounded-md border border-slate-200 dark:border-slate-600 text-sm bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
                 <option value="directory">目录</option><option value="menu">菜单</option><option value="button">按钮</option>
               </select>
             </FormField>
