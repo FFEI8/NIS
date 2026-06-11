@@ -255,6 +255,27 @@ export const useAppStore = create<AppState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         activeMenu: state.activeMenu,
       }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('[Zustand] Persist rehydration failed:', error);
+            // Clear corrupted state by removing from localStorage
+            try {
+              localStorage.removeItem('hims-app-store');
+            } catch {
+              // Ignore storage errors
+            }
+          }
+          if (state) {
+            // Validate rehydrated state — if currentUser has invalid structure, clear it
+            const user = state.currentUser;
+            if (user && typeof user !== 'object') {
+              console.warn('[Zustand] Invalid currentUser in persisted state, clearing');
+              state.logout();
+            }
+          }
+        };
+      },
     }
   )
 );

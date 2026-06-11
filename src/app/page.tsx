@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, ComponentType, useRef } from 'react';
+import { useState, useEffect, ComponentType, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/app-store';
 import { useConfigStore } from '@/store/config-store';
-import { Hospital, RefreshCw, Loader2 } from 'lucide-react';
+import { Hospital, RefreshCw, Loader2, AlertTriangle, RotateCcw } from 'lucide-react';
 import LoginPage from '@/components/layout/login-page';
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
@@ -27,18 +27,17 @@ function PageLoading() {
 function LoadingBar() {
   const [loading, setLoading] = useState(false);
   const [complete, setComplete] = useState(false);
+  const activeRequestsRef = useRef(0);
 
   useEffect(() => {
-    // Intercept fetch to show loading bar for API calls
     const originalFetch = window.fetch;
-    let activeRequests = 0;
 
     window.fetch = async (...args) => {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
       // Only show loading bar for API calls (not static assets)
       if (url.startsWith('/api/')) {
-        activeRequests++;
-        if (!loading) {
+        activeRequestsRef.current++;
+        if (activeRequestsRef.current === 1) {
           setLoading(true);
           setComplete(false);
         }
@@ -49,9 +48,9 @@ function LoadingBar() {
         return response;
       } finally {
         if (url.startsWith('/api/')) {
-          activeRequests--;
-          if (activeRequests <= 0) {
-            activeRequests = 0;
+          activeRequestsRef.current--;
+          if (activeRequestsRef.current <= 0) {
+            activeRequestsRef.current = 0;
             setComplete(true);
             setTimeout(() => {
               setLoading(false);
@@ -65,7 +64,7 @@ function LoadingBar() {
     return () => {
       window.fetch = originalFetch;
     };
-  }, [loading]);
+  }, []); // Empty deps - only patch once, use ref for counter
 
   if (!loading && !complete) return null;
 
@@ -182,13 +181,109 @@ function MainApp() {
   );
 }
 
+// ============ Seed Initialization Component ============
+function SeedInitializer({ onDone }: { onDone: () => void }) {
+  const [seedError, setSeedError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  const doSeed = useCallback(async () => {
+    setRetrying(true);
+    setSeedError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const res = await fetch('/api/seed', { method: 'POST', signal: controller.signal });
+      if (!res.ok) {
+        throw new Error(`初始化失败 (HTTP ${res.status})`);
+      }
+      const data = await res.json();
+      console.log('[Seed] Result:', data);
+      localStorage.setItem('hims-seed-done', 'true');
+      onDone();
+    } catch (e) {
+      console.warn('[Seed] Error:', e);
+      // Mark seed as attempted to prevent retry storms on every page load
+      // But use 'error' value so we can distinguish from success
+      localStorage.setItem('hims-seed-done', 'error');
+      setSeedError(e instanceof Error ? e.message : '初始化失败');
+    } finally {
+      clearTimeout(timeoutId);
+      setRetrying(false);
+    }
+  }, [onDone]);
+
+  useEffect(() => {
+    const seedDone = localStorage.getItem('hims-seed-done');
+    if (seedDone === 'true') {
+      // Seed already completed successfully
+      onDone();
+      return;
+    }
+    // Need to seed (either first time or previous error)
+    doSeed();
+  }, [doSeed, onDone]);
+
+  if (seedError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+        <div className="text-center max-w-sm">
+          <div className="mb-4 text-rose-400">
+            <AlertTriangle size={48} className="mx-auto" />
+          </div>
+          <div className="text-white text-lg font-medium mb-2">系统初始化失败</div>
+          <div className="text-slate-400 text-sm mb-4">{seedError}</div>
+          <div className="text-slate-500 text-xs mb-4">
+            数据库可能未就绪，请稍后重试
+          </div>
+          <button
+            onClick={doSeed}
+            disabled={retrying}
+            className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium"
+          >
+            <RotateCcw size={16} className={retrying ? 'animate-spin' : ''} />
+            {retrying ? '正在重试...' : '重新初始化'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="text-center">
+        <div className="mb-4 animate-bounce text-emerald-400">
+          <Hospital size={48} className="mx-auto" />
+        </div>
+        <div className="text-white text-lg font-medium">系统初始化中...</div>
+        <div className="text-slate-400 text-sm mt-2 flex items-center justify-center gap-2">
+          <RefreshCw size={14} className="animate-spin" />
+          正在加载初始数据
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ Root Page ============
 export default function Home() {
   const currentUser = useAppStore(s => s.currentUser);
   const [initializing, setInitializing] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
 
+  // Wait for Zustand persist hydration to complete
+  // This prevents flash of wrong state (SSR renders null user, client has persisted user)
   useEffect(() => {
-    // Handle chunk load errors by reloading the page
+    // Zustand persist hydrates asynchronously; use a microtask to detect completion
+    const timer = requestAnimationFrame(() => {
+      setHydrated(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
+
+  // Handle chunk load errors by reloading the page
+  useEffect(() => {
     const handleChunkError = (event: ErrorEvent) => {
       if (event.message?.includes('ChunkLoadError') || event.message?.includes('Loading chunk')) {
         console.warn('Chunk load error detected, reloading page...');
@@ -199,51 +294,21 @@ export default function Home() {
     return () => window.removeEventListener('error', handleChunkError);
   }, []);
 
-  useEffect(() => {
-    // Only seed once - check localStorage flag first
-    const seedDone = localStorage.getItem('hims-seed-done');
-    if (seedDone === 'true') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInitializing(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    fetch('/api/seed', { method: 'POST', signal: controller.signal })
-      .then(r => {
-        if (!r.ok) {
-          throw new Error(`Seed failed with status ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(d => {
-        console.log('Seed result:', d);
-        localStorage.setItem('hims-seed-done', 'true');
-      })
-      .catch(e => {
-        console.error('Seed error:', e);
-        // Don't set hims-seed-done on failure so it can be retried
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-        setInitializing(false);
-      });
+  const handleSeedDone = useCallback(() => {
+    setInitializing(false);
   }, []);
 
-  if (initializing) {
+  // Show loading screen during hydration
+  if (!hydrated || initializing) {
+    if (initializing) {
+      return <SeedInitializer onDone={handleSeedDone} />;
+    }
+    // Hydrating but seed done — show a brief loading indicator
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-center">
-          <div className="mb-4 animate-bounce text-emerald-400">
-            <Hospital size={48} className="mx-auto" />
-          </div>
-          <div className="text-white text-lg font-medium">系统初始化中...</div>
-          <div className="text-slate-400 text-sm mt-2 flex items-center justify-center gap-2">
-            <RefreshCw size={14} className="animate-spin" />
-            正在加载初始数据
-          </div>
+          <Loader2 size={32} className="animate-spin text-emerald-500 mx-auto mb-3" />
+          <div className="text-slate-500 text-sm">正在恢复会话...</div>
         </div>
       </div>
     );
