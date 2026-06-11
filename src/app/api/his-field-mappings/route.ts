@@ -15,9 +15,13 @@ export async function GET(request: Request) {
       where.scenarioId = scenarioId;
     }
 
-    // Optional status filter
-    if (searchParams.get('status') !== null) {
-      where.status = parseInt(searchParams.get('status')!);
+    // Optional status filter - only apply if status is a valid number
+    const statusParam = searchParams.get('status');
+    if (statusParam !== null && statusParam !== '') {
+      const statusVal = parseInt(statusParam);
+      if (!isNaN(statusVal)) {
+        where.status = statusVal;
+      }
     }
 
     // Optional keyword search on systemField, systemLabel, hisField

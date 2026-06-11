@@ -8,7 +8,7 @@ import { Hospital, ChevronRight, PanelLeftClose, PanelLeftOpen, LogOut } from 'l
 
 export default function Sidebar() {
   const { userMenus, sidebarCollapsed, toggleSidebar, activeMenu, setActiveMenu, currentUser, logout } = useAppStore();
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['infection-monitor', 'infectious-disease', 'data-analysis', 'env-monitor', 'occupational-safety', 'system']));
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['infection-monitor', 'infectious-disease', 'data-analysis', 'env-monitor', 'occupational-safety', 'system', 'his-integration-mgmt']));
   const [animating, setAnimating] = useState(false);
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
 

@@ -29,8 +29,12 @@ export async function GET(request: Request) {
     }
 
     // Filter by status (default to active if not specified)
-    if (searchParams.get('status') !== null) {
-      where.status = parseInt(searchParams.get('status')!);
+    const statusParam = searchParams.get('status');
+    if (statusParam !== null && statusParam !== '') {
+      const statusVal = parseInt(statusParam);
+      if (!isNaN(statusVal)) {
+        where.status = statusVal;
+      }
     }
 
     // Keyword search on field, issueType, description, suggestion

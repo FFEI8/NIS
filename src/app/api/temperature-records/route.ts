@@ -60,10 +60,22 @@ export async function GET(request: Request) {
 
     if (searchParams.get('dept')) where.dept = searchParams.get('dept');
     if (searchParams.get('patientName')) where.patientName = { contains: searchParams.get('patientName') };
-    if (searchParams.get('isAbnormal') !== null) where.isAbnormal = parseInt(searchParams.get('isAbnormal') || '0');
-    if (searchParams.get('isFever') !== null) where.isFever = parseInt(searchParams.get('isFever') || '0');
+    const isAbnormalParam = searchParams.get('isAbnormal');
+    if (isAbnormalParam !== null && isAbnormalParam !== '') {
+      const isAbnormalVal = parseInt(isAbnormalParam);
+      if (!isNaN(isAbnormalVal)) where.isAbnormal = isAbnormalVal;
+    }
+    const isFeverParam = searchParams.get('isFever');
+    if (isFeverParam !== null && isFeverParam !== '') {
+      const isFeverVal = parseInt(isFeverParam);
+      if (!isNaN(isFeverVal)) where.isFever = isFeverVal;
+    }
     if (searchParams.get('feverLevel')) where.feverLevel = searchParams.get('feverLevel');
-    if (searchParams.get('autoReported') !== null) where.autoReported = parseInt(searchParams.get('autoReported') || '0');
+    const autoReportedParam = searchParams.get('autoReported');
+    if (autoReportedParam !== null && autoReportedParam !== '') {
+      const autoReportedVal = parseInt(autoReportedParam);
+      if (!isNaN(autoReportedVal)) where.autoReported = autoReportedVal;
+    }
     if (searchParams.get('measureRoute')) where.measureRoute = searchParams.get('measureRoute');
 
     // Date range filter
