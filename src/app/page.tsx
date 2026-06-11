@@ -189,13 +189,14 @@ function MainApp() {
 function SeedInitializer({ onDone }: { onDone: () => void }) {
   const [seedError, setSeedError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const retryCountRef = useRef(0);
 
   const doSeed = useCallback(async () => {
     setRetrying(true);
     setSeedError(null);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       const res = await fetch('/api/seed', { method: 'POST', signal: controller.signal });
@@ -205,9 +206,30 @@ function SeedInitializer({ onDone }: { onDone: () => void }) {
       const data = await res.json();
       console.log('[Seed] Result:', data);
       localStorage.setItem('hims-seed-done', 'true');
+      retryCountRef.current = 0;
       onDone();
     } catch (e) {
       console.warn('[Seed] Error:', e);
+      retryCountRef.current++;
+      
+      // If this is a network error (server might be starting up), auto-retry a few times
+      const isNetworkError = e instanceof Error && (
+        e.message.includes('abort') || 
+        e.message.includes('Failed to fetch') || 
+        e.message.includes('NetworkError') ||
+        e.message.includes('Network request failed')
+      );
+      
+      if (isNetworkError && retryCountRef.current < 3) {
+        // Auto-retry with exponential backoff
+        const delay = Math.min(2000 * Math.pow(2, retryCountRef.current - 1), 10000);
+        console.log(`[Seed] Auto-retry ${retryCountRef.current}/3 in ${delay}ms...`);
+        setTimeout(() => {
+          void doSeed();
+        }, delay);
+        return; // Don't show error yet
+      }
+      
       // Mark seed as attempted to prevent retry storms on every page load
       // But use 'error' value so we can distinguish from success
       localStorage.setItem('hims-seed-done', 'error');
@@ -275,34 +297,88 @@ export default function Home() {
   const currentUser = useAppStore(s => s.currentUser);
   const [initializing, setInitializing] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [persistUser, setPersistUser] = useState<boolean | null>(null);
 
   // Wait for Zustand persist hydration to complete
   // This prevents flash of wrong state (SSR renders null user, client has persisted user)
   useEffect(() => {
-    // Zustand persist hydrates asynchronously; use a microtask to detect completion
-    const timer = requestAnimationFrame(() => {
+    // Zustand persist hydrates asynchronously.
+    // Use onFinishHydration callback to detect when hydration is truly complete.
+    const unsub = useAppStore.persist.onFinishHydration(() => {
       setHydrated(true);
     });
-    return () => cancelAnimationFrame(timer);
+
+    // If already hydrated (e.g. on subsequent renders), set immediately via microtask
+    if (useAppStore.persist.hasHydrated()) {
+      queueMicrotask(() => setHydrated(true));
+    }
+
+    // Fallback: if hydration doesn't fire within 1 second, proceed anyway
+    const fallbackTimer = setTimeout(() => {
+      setHydrated(true);
+    }, 1000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsub();
+    };
   }, []);
 
-  // Handle chunk load errors by reloading the page
+  // After hydration, check localStorage for persisted user to prevent flash of login page
+  useEffect(() => {
+    if (!hydrated) return;
+    // Use microtask to avoid synchronous setState in effect
+    queueMicrotask(() => {
+      try {
+        const stored = localStorage.getItem('hims-app-store');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setPersistUser(!!parsed?.state?.currentUser);
+        } else {
+          setPersistUser(false);
+        }
+      } catch {
+        setPersistUser(false);
+      }
+    });
+  }, [hydrated]);
+
+  // Handle chunk load errors and unhandled promise rejections
   useEffect(() => {
     const handleChunkError = (event: ErrorEvent) => {
       if (event.message?.includes('ChunkLoadError') || event.message?.includes('Loading chunk')) {
         console.warn('Chunk load error detected, reloading page...');
+        // Clear potentially stale cache
+        try {
+          localStorage.removeItem('hims-seed-done');
+        } catch { /* ignore */ }
         window.location.reload();
       }
     };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = String(event.reason || '');
+      if (reason.includes('ChunkLoadError') || reason.includes('Loading chunk') || reason.includes('Failed to fetch')) {
+        console.warn('Chunk load rejection detected, reloading page...');
+        event.preventDefault();
+        try {
+          localStorage.removeItem('hims-seed-done');
+        } catch { /* ignore */ }
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    };
     window.addEventListener('error', handleChunkError);
-    return () => window.removeEventListener('error', handleChunkError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleChunkError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
   }, []);
 
   const handleSeedDone = useCallback(() => {
     setInitializing(false);
   }, []);
 
-  // Show loading screen during hydration
+  // Show loading screen during hydration or initialization
   if (!hydrated || initializing) {
     if (initializing) {
       return <SeedInitializer onDone={handleSeedDone} />;
@@ -313,6 +389,19 @@ export default function Home() {
         <div className="text-center">
           <Loader2 size={32} className="animate-spin text-emerald-500 mx-auto mb-3" />
           <div className="text-slate-500 text-sm">正在恢复会话...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we're still checking persist state, show a brief loader
+  // This prevents a flash of the login page for already-logged-in users
+  if (persistUser === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-center">
+          <Loader2 size={32} className="animate-spin text-emerald-500 mx-auto mb-3" />
+          <div className="text-slate-500 text-sm">正在加载...</div>
         </div>
       </div>
     );
